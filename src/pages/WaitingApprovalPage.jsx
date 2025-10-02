@@ -1,8 +1,17 @@
 import React from 'react'
-import { useAuth } from '../context/AuthContext.jsx'
+import { useNavigate } from 'react-router-dom'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
+import { logout } from '../store/slices/authSlice'
 
 export default function WaitingApprovalPage(){
-  const { user, logout } = useAuth()
+  const { user } = useAppSelector(state => state.auth)
+  const dispatch = useAppDispatch()
+  const nav = useNavigate()
+  
+  const handleLogout = () => {
+    dispatch(logout())
+    nav('/login')
+  }
   
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-blue-100 to-purple-200">
@@ -22,7 +31,7 @@ export default function WaitingApprovalPage(){
           </p>
         </div>
         <button 
-          onClick={logout}
+          onClick={handleLogout}
           className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors"
         >
           Logout

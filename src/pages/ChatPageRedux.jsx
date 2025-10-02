@@ -1,29 +1,56 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { io } from 'socket.io-client'
-import { getChatWithUser, sendMessage as sendMsg, deleteMessage as delMsg, addReaction as addReact, uploadMedia } from '../services/chatService.js'
-import { useAuth } from '../context/AuthContext.jsx'
+import { useAppDispatch, useAppSelector } from '../store/hooks.js'
+import {
+  fetchChatWithUser,
+  sendMessage,
+  deleteMessage as deleteMsg,
+  addReaction as addReact,
+  uploadMedia as uploadMediaAction,
+  addMessageRealtime,
+  deleteMessageRealtime,
+  updateReactionRealtime,
+  clearNewMessageFlag,
+  clearChat
+} from '../store/slices/chatSlice.js'
+import {
+  toggleMediaMenu,
+  closeMediaMenu,
+  openCameraModal,
+  closeCameraModal,
+  setZoomedImage,
+  setContextMenu,
+  setReactionMenu,
+  closeAllMenus,
+  setRecordingVideo
+} from '../store/slices/uiSlice.js'
 import { IoMdAdd, IoMdClose, IoMdNotifications } from 'react-icons/io'
 import { MdImage, MdVideocam, MdCamera, MdPhotoLibrary, MdVideoLibrary, MdSend } from 'react-icons/md'
 import { BsEmojiSmile } from 'react-icons/bs'
 
-export default function ChatPage() {
-  const { chatId: userIdParam } = useParams() // This is actually userId, not chatId
-  const { user: currentUser } = useAuth()
-  const [chatData, setChatData] = useState(null)
-  const [messages, setMessages] = useState([])
-  const [text, setText] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [contextMenu, setContextMenu] = useState(null)
-  const [reactionMenu, setReactionMenu] = useState(null)
-  const [uploading, setUploading] = useState(false)
-  const [showCameraModal, setShowCameraModal] = useState(false)
-  const [cameraMode, setCameraMode] = useState('photo') // 'photo' or 'video'
-  const [cameraStream, setCameraStream] = useState(null)
-  const [isRecordingVideo, setIsRecordingVideo] = useState(false)
-  const [showMediaMenu, setShowMediaMenu] = useState(false)
-  const [zoomedImage, setZoomedImage] = useState(null)
-  const [hasNewMessage, setHasNewMessage] = useState(false)
+export default function ChatPageRedux() {
+  const { chatId: userIdParam } = useParams()
+  const dispatch = useAppDispatch()
+  
+  // Redux state
+  const { user: currentUser } = useAppSelector(state => state.auth)
+  const { currentChat, messages, loading, uploading, hasNewMessage } = useAppSelector(state => state.chat)
+  const {
+    showMediaMenu,
+    showCameraModal,
+    cameraMode,
+    zoomedImage,
+    contextMenu,
+    reactionMenu,
+    isRecordingVideo
+  } = useAppSelector(state => state.ui)
+  
+  // Local state for text input
+  const [text, setText] = React.useState('')
+  const [cameraStream, setCameraStream] = React.useState(null)
+  
+  // Refs
   const chatEndRef = useRef(null)
   const socketRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -31,103 +58,73 @@ export default function ChatPage() {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const videoRecorderRef = useRef(null)
-  const messagesEndRef = useRef(null)
 
-  const loadChat = async () => {
-    try {
-      const data = await getChatWithUser(userIdParam)
-      setChatData(data)
-      setMessages(data.messages || [])
-      setLoading(false)
-      
-      // Connect socket
-      if (!socketRef.current) {
-        socketRef.current = io('http://localhost:5000', { 
-          transports: ['websocket'],
-          auth: { token: localStorage.getItem('token') }
-        })
-        
-        socketRef.current.emit('join', data.chatId)
-        
-        socketRef.current.on('message', (m) => {
-          setMessages(prev => [...prev, {
-            _id: m._id,
-            text: m.text,
-            messageType: m.messageType,
-            mediaUrl: m.mediaUrl,
-            mediaDuration: m.mediaDuration,
-            reactions: m.reactions || [],
-            sender: m.sender,
-            sentAt: m.sentAt,
-            fromSelf: String(m.sender) === String(currentUser.id)
-          }])
-          
-          // Show notification if message is from other user
-          if (String(m.sender) !== String(currentUser.id)) {
-            setHasNewMessage(true)
-          }
-        })
-
-        socketRef.current.on('messageDeleted', ({ messageId, deleteType }) => {
-          if (deleteType === 'forEveryone') {
-            setMessages(prev => prev.map(m => 
-              String(m._id) === String(messageId) 
-                ? { ...m, deletedForEveryone: true, text: '', mediaUrl: null } 
-                : m
-            ))
-          }
-        })
-
-        socketRef.current.on('reactionUpdated', ({ messageId, reactions }) => {
-          setMessages(prev => prev.map(m => 
-            String(m._id) === String(messageId) ? { ...m, reactions } : m
-          ))
-        })
-      }
-    } catch (e) {
-      console.error('Load chat error:', e)
-      setLoading(false)
-    }
-  }
-
+  // Load chat on mount
   useEffect(() => {
-    loadChat()
+    dispatch(fetchChatWithUser(userIdParam))
+    
     return () => {
+      dispatch(clearChat())
       if (socketRef.current) {
         socketRef.current.disconnect()
         socketRef.current = null
       }
-      // Cleanup camera stream
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop())
       }
     }
-  }, [userIdParam])
+  }, [userIdParam, dispatch])
 
+  // Setup socket connection
+  useEffect(() => {
+    if (currentChat && !socketRef.current) {
+      socketRef.current = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+        transports: ['websocket'],
+        auth: { token: localStorage.getItem('token') }
+      })
+      
+      socketRef.current.emit('join', currentChat.chatId)
+      
+      socketRef.current.on('message', (m) => {
+        dispatch(addMessageRealtime({
+          ...m,
+          fromSelf: String(m.sender) === String(currentUser.id)
+        }))
+      })
+
+      socketRef.current.on('messageDeleted', ({ messageId, deleteType }) => {
+        dispatch(deleteMessageRealtime({ messageId, deleteType }))
+      })
+
+      socketRef.current.on('reactionUpdated', ({ messageId, reactions }) => {
+        dispatch(updateReactionRealtime({ messageId, reactions }))
+      })
+    }
+  }, [currentChat, dispatch, currentUser])
+
+  // Auto-scroll to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    // Clear notification when messages change (user is viewing)
     if (hasNewMessage) {
-      setTimeout(() => setHasNewMessage(false), 3000)
+      setTimeout(() => dispatch(clearNewMessageFlag()), 3000)
     }
-  }, [messages])
+  }, [messages, hasNewMessage, dispatch])
 
+  // Handlers
   const onSend = async (e) => {
     e.preventDefault()
-    if (!text.trim() || !chatData) return
+    if (!text.trim() || !currentChat) return
     
-    try {
-      await sendMsg(chatData.chatId, { messageText: text, messageType: 'text' })
-      setText('')
-    } catch (e) {
-      console.error('Send error:', e)
-    }
+    await dispatch(sendMessage({
+      chatId: currentChat.chatId,
+      payload: { messageText: text, messageType: 'text' }
+    }))
+    setText('')
   }
 
   const handleFileUpload = async (file, type) => {
-    if (!chatData) return
+    if (!currentChat) return
     
-    // Validate video duration (max 2 minutes)
     if (type === 'video') {
       const video = document.createElement('video')
       video.preload = 'metadata'
@@ -137,47 +134,24 @@ export default function ChatPage() {
           alert('Video must be less than 2 minutes')
           return
         }
-        await uploadAndSend(file, type, video.duration)
+        await dispatch(uploadMediaAction({ chatId: currentChat.chatId, file }))
       }
       video.src = URL.createObjectURL(file)
     } else {
-      await uploadAndSend(file, type)
+      await dispatch(uploadMediaAction({ chatId: currentChat.chatId, file }))
     }
-  }
-
-  const uploadAndSend = async (file, type, duration = null) => {
-    setUploading(true)
-    setShowMediaMenu(false)
-    try {
-      const response = await uploadMedia(chatData.chatId, file)
-      console.log('Media uploaded successfully:', response)
-    } catch (e) {
-      alert('Upload failed: ' + (e.response?.data?.message || e.message))
-    }
-    setUploading(false)
-  }
-
-  const handleReaction = async (messageId, emoji) => {
-    try {
-      await addReact(chatData.chatId, messageId, emoji)
-      setReactionMenu(null)
-    } catch (e) {
-      console.error('Reaction error:', e)
-    }
+    dispatch(closeMediaMenu())
   }
 
   const openCamera = async (mode) => {
     try {
-      setShowMediaMenu(false)
-      setCameraMode(mode)
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: true, 
         audio: mode === 'video' 
       })
       setCameraStream(stream)
-      setShowCameraModal(true)
+      dispatch(openCameraModal(mode))
       
-      // Wait for modal to render, then set video stream
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream
@@ -196,8 +170,7 @@ export default function ChatPage() {
     if (videoRecorderRef.current) {
       videoRecorderRef.current.stop()
     }
-    setShowCameraModal(false)
-    setIsRecordingVideo(false)
+    dispatch(closeCameraModal())
   }
 
   const capturePhoto = () => {
@@ -214,7 +187,7 @@ export default function ChatPage() {
     canvas.toBlob(async (blob) => {
       const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })
       closeCamera()
-      await uploadAndSend(file, 'image')
+      await dispatch(uploadMediaAction({ chatId: currentChat.chatId, file }))
     }, 'image/jpeg', 0.95)
   }
 
@@ -229,7 +202,6 @@ export default function ChatPage() {
       const blob = new Blob(chunks, { type: 'video/webm' })
       const file = new File([blob], `video-${Date.now()}.webm`, { type: 'video/webm' })
       
-      // Get duration
       const video = document.createElement('video')
       video.preload = 'metadata'
       video.onloadedmetadata = async () => {
@@ -239,16 +211,15 @@ export default function ChatPage() {
           return
         }
         closeCamera()
-        await uploadAndSend(file, 'video', video.duration)
+        await dispatch(uploadMediaAction({ chatId: currentChat.chatId, file }))
       }
       video.src = URL.createObjectURL(blob)
     }
     
     recorder.start()
     videoRecorderRef.current = recorder
-    setIsRecordingVideo(true)
+    dispatch(setRecordingVideo(true))
     
-    // Auto-stop after 2 minutes
     setTimeout(() => {
       if (videoRecorderRef.current && videoRecorderRef.current.state === 'recording') {
         stopVideoRecording()
@@ -259,39 +230,28 @@ export default function ChatPage() {
   const stopVideoRecording = () => {
     if (videoRecorderRef.current) {
       videoRecorderRef.current.stop()
-      setIsRecordingVideo(false)
+      dispatch(setRecordingVideo(false))
     }
   }
 
   const handleDeleteMessage = async (messageId, deleteType) => {
-    try {
-      await delMsg(chatData.chatId, messageId, deleteType)
-      if (deleteType === 'forMe') {
-        setMessages(prev => prev.filter(m => String(m._id) !== String(messageId)))
-      } else if (deleteType === 'forEveryone') {
-        // Update message to show deleted indicator
-        setMessages(prev => prev.map(m => 
-          String(m._id) === String(messageId) 
-            ? { ...m, deletedForEveryone: true, text: '', mediaUrl: null } 
-            : m
-        ))
-      }
-      setContextMenu(null)
-    } catch (e) {
-      alert(e.response?.data?.message || 'Delete failed')
-    }
+    await dispatch(deleteMsg({ chatId: currentChat.chatId, messageId, deleteType }))
+    dispatch(closeAllMenus())
+  }
+
+  const handleReaction = async (messageId, emoji) => {
+    await dispatch(addReact({ chatId: currentChat.chatId, messageId, emoji }))
+    dispatch(closeAllMenus())
   }
 
   const handleContextMenu = (e, message) => {
     e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY, message })
-    setReactionMenu(null)
+    dispatch(setContextMenu({ x: e.clientX, y: e.clientY, message }))
   }
 
   const handleReactionClick = (e, message) => {
     e.stopPropagation()
-    setReactionMenu({ x: e.clientX, y: e.clientY, message })
-    setContextMenu(null)
+    dispatch(setReactionMenu({ x: e.clientX, y: e.clientY, message }))
   }
 
   const formatDuration = (seconds) => {
@@ -301,7 +261,6 @@ export default function ChatPage() {
   }
 
   const renderMessage = (m) => {
-    // Show "Message deleted" for deletedForEveryone
     if (m.deletedForEveryone) {
       return (
         <div className="flex items-center gap-2 text-gray-500 italic">
@@ -318,7 +277,7 @@ export default function ChatPage() {
             src={m.mediaUrl} 
             alt="shared" 
             className="max-w-full rounded-lg max-h-64 object-cover cursor-pointer hover:opacity-90 transition"
-            onClick={() => setZoomedImage(m.mediaUrl)}
+            onClick={() => dispatch(setZoomedImage(m.mediaUrl))}
           />
           {m.text && <div className="mt-2">{m.text}</div>}
         </div>
@@ -341,17 +300,16 @@ export default function ChatPage() {
       )
     }
     
-    
     return <div>{m.text || 'Message'}</div>
   }
 
   const getOtherUser = () => {
-    if (!chatData?.users) return null
-    return chatData.users.find(u => String(u._id) !== String(currentUser.id))
+    if (!currentChat?.users) return null
+    return currentChat.users.find(u => String(u._id) !== String(currentUser.id))
   }
 
   if (loading) return <div className="text-center mt-20">Loading chat...</div>
-  if (!chatData) return <div className="text-center mt-20">Chat not found</div>
+  if (!currentChat) return <div className="text-center mt-20">Chat not found</div>
 
   const otherUser = getOtherUser()
 
@@ -373,7 +331,6 @@ export default function ChatPage() {
           </div>
         </Link>
         
-        {/* New Message Notification */}
         {hasNewMessage && (
           <div className="absolute right-4 top-1/2 -translate-y-1/2 animate-bounce">
             <IoMdNotifications className="text-yellow-300 text-3xl drop-shadow-lg" />
@@ -393,7 +350,6 @@ export default function ChatPage() {
           >
             {renderMessage(m)}
             
-            {/* Reactions - only show if not deleted */}
             {!m.deletedForEveryone && m.reactions && m.reactions.length > 0 && (
               <div className="absolute -bottom-2 right-2 flex gap-1 bg-white rounded-full px-2 py-0.5 shadow-md border border-gray-200">
                 {m.reactions.map((r, idx) => (
@@ -402,7 +358,6 @@ export default function ChatPage() {
               </div>
             )}
             
-            {/* Reaction Button - only show if not deleted */}
             {!m.deletedForEveryone && (
               <button
                 onClick={(e) => handleReactionClick(e, m)}
@@ -420,10 +375,10 @@ export default function ChatPage() {
         <div ref={chatEndRef} />
       </div>
 
-      {/* Context Menu for Delete */}
+      {/* Context Menu */}
       {contextMenu && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} />
+          <div className="fixed inset-0 z-40" onClick={() => dispatch(closeAllMenus())} />
           <div
             className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-xl py-2 min-w-[180px]"
             style={{ top: contextMenu.y, left: contextMenu.x }}
@@ -449,7 +404,7 @@ export default function ChatPage() {
       {/* Reaction Menu */}
       {reactionMenu && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setReactionMenu(null)} />
+          <div className="fixed inset-0 z-40" onClick={() => dispatch(closeAllMenus())} />
           <div
             className="fixed z-50 bg-white border border-gray-300 rounded-full shadow-xl px-3 py-2 flex gap-2"
             style={{ top: reactionMenu.y - 50, left: reactionMenu.x - 100 }}
@@ -471,13 +426,7 @@ export default function ChatPage() {
       {showCameraModal && (
         <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
           <div className="relative w-full max-w-2xl">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full rounded-lg"
-            />
+            <video ref={videoRef} autoPlay playsInline muted className="w-full rounded-lg" />
             <canvas ref={canvasRef} className="hidden" />
             
             <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-4">
@@ -530,10 +479,10 @@ export default function ChatPage() {
       {zoomedImage && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center p-4"
-          onClick={() => setZoomedImage(null)}
+          onClick={() => dispatch(setZoomedImage(null))}
         >
           <button
-            onClick={() => setZoomedImage(null)}
+            onClick={() => dispatch(setZoomedImage(null))}
             className="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-70 transition"
           >
             <IoMdClose className="text-3xl" />
@@ -557,7 +506,6 @@ export default function ChatPage() {
         )}
         
         <form onSubmit={onSend} className="flex gap-2 items-center relative">
-          {/* Hidden file inputs */}
           <input
             ref={fileInputRef}
             type="file"
@@ -573,7 +521,6 @@ export default function ChatPage() {
             className="hidden"
           />
           
-          {/* Emoji Button */}
           <button
             type="button"
             onClick={() => {}}
@@ -583,7 +530,6 @@ export default function ChatPage() {
             <BsEmojiSmile className="text-2xl" />
           </button>
           
-          {/* Image Icon */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -593,24 +539,19 @@ export default function ChatPage() {
             <MdImage className="text-2xl" />
           </button>
           
-          {/* Plus Icon with Dropdown */}
           <div className="relative">
             <button
               type="button"
-              onClick={() => setShowMediaMenu(!showMediaMenu)}
+              onClick={() => dispatch(toggleMediaMenu())}
               className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition"
               title="More options"
             >
               <IoMdAdd className="text-2xl" />
             </button>
             
-            {/* Media Menu Dropdown */}
             {showMediaMenu && (
               <>
-                <div 
-                  className="fixed inset-0 z-30" 
-                  onClick={() => setShowMediaMenu(false)}
-                />
+                <div className="fixed inset-0 z-30" onClick={() => dispatch(closeMediaMenu())} />
                 <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[200px] z-40">
                   <button
                     onClick={() => openCamera('photo')}
@@ -621,7 +562,7 @@ export default function ChatPage() {
                   </button>
                   
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => { fileInputRef.current?.click(); dispatch(closeMediaMenu()) }}
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100 transition text-left"
                   >
                     <MdPhotoLibrary className="text-xl text-green-500" />
@@ -637,7 +578,7 @@ export default function ChatPage() {
                   </button>
                   
                   <button
-                    onClick={() => videoInputRef.current?.click()}
+                    onClick={() => { videoInputRef.current?.click(); dispatch(closeMediaMenu()) }}
                     className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100 transition text-left"
                   >
                     <MdVideoLibrary className="text-xl text-purple-500" />

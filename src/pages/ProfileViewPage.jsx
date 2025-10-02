@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getProfile } from '../services/userService.js'
 import { sendRequest, unfollow } from '../services/requestService.js'
-import { useAuth } from '../context/AuthContext.jsx'
+import { useAppSelector } from '../store/hooks'
 
 export default function ProfileViewPage() {
   const { id } = useParams()
-  const { user: currentUser } = useAuth()
+  const { user: currentUser } = useAppSelector(state => state.auth)
   const nav = useNavigate()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)

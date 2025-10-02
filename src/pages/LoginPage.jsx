@@ -1,26 +1,25 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext.jsx'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
+import { login, clearError } from '../store/slices/authSlice'
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const dispatch = useAppDispatch()
+  const { loading, error } = useAppSelector(state => state.auth)
   const nav = useNavigate()
   const [form, setForm] = useState({ contact:'', email:'', password:'' })
-  const [loading, setLoading] = useState(false)
   
   const onChange = (e)=> setForm({...form,[e.target.name]: e.target.value})
   
   const onSubmit = async (e)=>{
     e.preventDefault()
-    setLoading(true)
-    try {
-      await login(form)
-      setLoading(false)
-      // Navigation will be handled by App.jsx based on user status
+    dispatch(clearError())
+    
+    const result = await dispatch(login(form))
+    if (result.type === 'auth/login/fulfilled') {
       nav('/dashboard')
-    } catch (error) {
-      setLoading(false)
-      alert(error.response?.data?.message || 'Login failed')
+    } else if (result.payload) {
+      alert(result.payload)
     }
   }
 
