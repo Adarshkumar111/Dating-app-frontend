@@ -17,11 +17,18 @@ export default function ChatPage() {
   const [recording, setRecording] = useState(false)
   const [mediaRecorder, setMediaRecorder] = useState(null)
   const [recordingTime, setRecordingTime] = useState(0)
+  const [showCameraModal, setShowCameraModal] = useState(false)
+  const [cameraMode, setCameraMode] = useState('photo') // 'photo' or 'video'
+  const [cameraStream, setCameraStream] = useState(null)
+  const [isRecordingVideo, setIsRecordingVideo] = useState(false)
   const chatEndRef = useRef(null)
   const socketRef = useRef(null)
   const fileInputRef = useRef(null)
   const videoInputRef = useRef(null)
   const recordingIntervalRef = useRef(null)
+  const videoRef = useRef(null)
+  const canvasRef = useRef(null)
+  const videoRecorderRef = useRef(null)
 
   const loadChat = async () => {
     try {
@@ -51,7 +58,11 @@ export default function ChatPage() {
 
         socketRef.current.on('messageDeleted', ({ messageId, deleteType }) => {
           if (deleteType === 'forEveryone') {
-            setMessages(prev => prev.filter(m => String(m._id) !== String(messageId)))
+            setMessages(prev => prev.map(m => 
+              String(m._id) === String(messageId) 
+                ? { ...m, deletedForEveryone: true, text: '', mediaUrl: null } 
+                : m
+            ))
           }
         })
 
@@ -73,6 +84,10 @@ export default function ChatPage() {
       if (socketRef.current) {
         socketRef.current.disconnect()
         socketRef.current = null
+      }
+      // Cleanup camera stream
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop())
       }
     }
   }, [userIdParam])
@@ -117,13 +132,16 @@ export default function ChatPage() {
   const uploadAndSend = async (file, type, duration = null) => {
     setUploading(true)
     try {
-      const { mediaUrl } = await uploadMedia(chatData.chatId, file)
-      await sendMsg(chatData.chatId, {
-        messageText: '',
-        messageType: type,
-        mediaUrl,
-        mediaDuration: duration
-      })
+      // Upload to ImageKit and save in database in one call
+      const formData = new FormData()
+      formData.append('media', file)
+      if (duration) {
+        formData.append('duration', duration.toString())
+      }
+      
+      const response = await uploadMedia(chatData.chatId, file)
+      // Message is already saved and broadcasted by backend
+      console.log('Media uploaded successfully:', response)
     } catch (e) {
       alert('Upload failed: ' + (e.response?.data?.message || e.message))
     }
@@ -176,11 +194,114 @@ export default function ChatPage() {
     }
   }
 
+  const openCamera = async (mode) => {
+    try {
+      setCameraMode(mode)
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, 
+        audio: mode === 'video' 
+      })
+      setCameraStream(stream)
+      setShowCameraModal(true)
+      
+      // Wait for modal to render, then set video stream
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+        }
+      }, 100)
+    } catch (e) {
+      alert('Camera access denied: ' + e.message)
+    }
+  }
+
+  const closeCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop())
+      setCameraStream(null)
+    }
+    if (videoRecorderRef.current) {
+      videoRecorderRef.current.stop()
+    }
+    setShowCameraModal(false)
+    setIsRecordingVideo(false)
+  }
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return
+    
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(video, 0, 0)
+    
+    canvas.toBlob(async (blob) => {
+      const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      closeCamera()
+      await uploadAndSend(file, 'image')
+    }, 'image/jpeg', 0.95)
+  }
+
+  const startVideoRecording = () => {
+    if (!cameraStream) return
+    
+    const recorder = new MediaRecorder(cameraStream, { mimeType: 'video/webm' })
+    const chunks = []
+    
+    recorder.ondataavailable = (e) => chunks.push(e.data)
+    recorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: 'video/webm' })
+      const file = new File([blob], `video-${Date.now()}.webm`, { type: 'video/webm' })
+      
+      // Get duration
+      const video = document.createElement('video')
+      video.preload = 'metadata'
+      video.onloadedmetadata = async () => {
+        window.URL.revokeObjectURL(video.src)
+        if (video.duration > 120) {
+          alert('Video must be less than 2 minutes')
+          return
+        }
+        closeCamera()
+        await uploadAndSend(file, 'video', video.duration)
+      }
+      video.src = URL.createObjectURL(blob)
+    }
+    
+    recorder.start()
+    videoRecorderRef.current = recorder
+    setIsRecordingVideo(true)
+    
+    // Auto-stop after 2 minutes
+    setTimeout(() => {
+      if (videoRecorderRef.current && videoRecorderRef.current.state === 'recording') {
+        stopVideoRecording()
+      }
+    }, 120000)
+  }
+
+  const stopVideoRecording = () => {
+    if (videoRecorderRef.current) {
+      videoRecorderRef.current.stop()
+      setIsRecordingVideo(false)
+    }
+  }
+
   const handleDeleteMessage = async (messageId, deleteType) => {
     try {
       await delMsg(chatData.chatId, messageId, deleteType)
       if (deleteType === 'forMe') {
         setMessages(prev => prev.filter(m => String(m._id) !== String(messageId)))
+      } else if (deleteType === 'forEveryone') {
+        // Update message to show deleted indicator
+        setMessages(prev => prev.map(m => 
+          String(m._id) === String(messageId) 
+            ? { ...m, deletedForEveryone: true, text: '', mediaUrl: null } 
+            : m
+        ))
       }
       setContextMenu(null)
     } catch (e) {
@@ -207,7 +328,17 @@ export default function ChatPage() {
   }
 
   const renderMessage = (m) => {
-    if (m.messageType === 'image') {
+    // Show "Message deleted" for deletedForEveryone
+    if (m.deletedForEveryone) {
+      return (
+        <div className="flex items-center gap-2 text-gray-500 italic">
+          <span>🚫</span>
+          <span>This message was deleted</span>
+        </div>
+      )
+    }
+    
+    if (m.messageType === 'image' && m.mediaUrl) {
       return (
         <div className="relative">
           <img src={m.mediaUrl} alt="shared" className="max-w-full rounded-lg max-h-64 object-cover" />
@@ -216,7 +347,7 @@ export default function ChatPage() {
       )
     }
     
-    if (m.messageType === 'video') {
+    if (m.messageType === 'video' && m.mediaUrl) {
       return (
         <div className="relative">
           <video controls className="max-w-full rounded-lg max-h-64">
@@ -232,11 +363,14 @@ export default function ChatPage() {
       )
     }
     
-    if (m.messageType === 'voice') {
+    if (m.messageType === 'voice' && m.mediaUrl) {
       return (
         <div className="flex items-center gap-2">
-          <audio controls className="max-w-full">
+          <audio controls className="max-w-full" preload="metadata">
             <source src={m.mediaUrl} type="audio/webm" />
+            <source src={m.mediaUrl} type="audio/mpeg" />
+            <source src={m.mediaUrl} type="audio/mp3" />
+            Your browser does not support audio playback.
           </audio>
           {m.mediaDuration && (
             <span className="text-xs">{formatDuration(Math.floor(m.mediaDuration))}</span>
@@ -245,7 +379,7 @@ export default function ChatPage() {
       )
     }
     
-    return <div>{m.text}</div>
+    return <div>{m.text || 'Message'}</div>
   }
 
   const getOtherUser = () => {
@@ -290,8 +424,8 @@ export default function ChatPage() {
           >
             {renderMessage(m)}
             
-            {/* Reactions */}
-            {m.reactions && m.reactions.length > 0 && (
+            {/* Reactions - only show if not deleted */}
+            {!m.deletedForEveryone && m.reactions && m.reactions.length > 0 && (
               <div className="absolute -bottom-2 right-2 flex gap-1 bg-white rounded-full px-2 py-0.5 shadow-md border border-gray-200">
                 {m.reactions.map((r, idx) => (
                   <span key={idx} className="text-sm">{r.emoji}</span>
@@ -299,13 +433,15 @@ export default function ChatPage() {
               </div>
             )}
             
-            {/* Reaction Button */}
-            <button
-              onClick={(e) => handleReactionClick(e, m)}
-              className="absolute -top-2 right-2 opacity-0 group-hover:opacity-100 bg-white rounded-full p-1 shadow-md border border-gray-200 hover:scale-110 transition"
-            >
-              😊
-            </button>
+            {/* Reaction Button - only show if not deleted */}
+            {!m.deletedForEveryone && (
+              <button
+                onClick={(e) => handleReactionClick(e, m)}
+                className="absolute -top-2 right-2 opacity-0 group-hover:opacity-100 bg-white rounded-full p-1 shadow-md border border-gray-200 hover:scale-110 transition"
+              >
+                😊
+              </button>
+            )}
             
             <div className={`text-xs mt-1 ${m.fromSelf ? 'text-pink-100' : 'text-gray-500'}`}>
               {new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -362,6 +498,65 @@ export default function ChatPage() {
         </>
       )}
 
+      {/* Camera Modal */}
+      {showCameraModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
+          <div className="relative w-full max-w-2xl">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full rounded-lg"
+            />
+            <canvas ref={canvasRef} className="hidden" />
+            
+            <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-4">
+              {cameraMode === 'photo' ? (
+                <>
+                  <button
+                    onClick={capturePhoto}
+                    className="bg-white text-gray-900 px-6 py-3 rounded-full font-semibold hover:bg-gray-100 transition"
+                  >
+                    📸 Capture Photo
+                  </button>
+                  <button
+                    onClick={closeCamera}
+                    className="bg-red-500 text-white px-6 py-3 rounded-full font-semibold hover:bg-red-600 transition"
+                  >
+                    ✕ Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  {!isRecordingVideo ? (
+                    <button
+                      onClick={startVideoRecording}
+                      className="bg-red-500 text-white px-6 py-3 rounded-full font-semibold hover:bg-red-600 transition"
+                    >
+                      ⏺ Start Recording
+                    </button>
+                  ) : (
+                    <button
+                      onClick={stopVideoRecording}
+                      className="bg-white text-gray-900 px-6 py-3 rounded-full font-semibold hover:bg-gray-100 transition animate-pulse"
+                    >
+                      ⏹ Stop & Send
+                    </button>
+                  )}
+                  <button
+                    onClick={closeCamera}
+                    className="bg-gray-500 text-white px-6 py-3 rounded-full font-semibold hover:bg-gray-600 transition"
+                  >
+                    ✕ Cancel
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <div className="p-3 border-t border-gray-200 bg-white">
         {uploading && (
@@ -398,24 +593,57 @@ export default function ChatPage() {
             className="hidden"
           />
           
+          {/* Emoji/Reaction Button */}
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {}}
+            className="p-2 text-2xl hover:bg-gray-100 rounded-full transition"
+            title="Emoji"
+          >
+            😊
+          </button>
+          
+          {/* Camera Photo */}
+          <button
+            type="button"
+            onClick={() => openCamera('photo')}
             className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition"
-            title="Send Image"
+            title="Take Photo"
           >
             📷
           </button>
           
+          {/* Gallery Image */}
           <button
             type="button"
-            onClick={() => videoInputRef.current?.click()}
+            onClick={() => fileInputRef.current?.click()}
             className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition"
-            title="Send Video (max 2 min)"
+            title="Gallery Image"
+          >
+            🖼️
+          </button>
+          
+          {/* Camera Video */}
+          <button
+            type="button"
+            onClick={() => openCamera('video')}
+            className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition"
+            title="Record Video"
           >
             🎥
           </button>
           
+          {/* Gallery Video */}
+          <button
+            type="button"
+            onClick={() => videoInputRef.current?.click()}
+            className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition"
+            title="Gallery Video"
+          >
+            📹
+          </button>
+          
+          {/* Voice Note */}
           <button
             type="button"
             onClick={recording ? stopVoiceRecording : startVoiceRecording}
