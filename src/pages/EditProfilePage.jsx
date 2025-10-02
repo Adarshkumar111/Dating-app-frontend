@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getMe } from '../services/userService.js'
 import { updateProfile, changePassword, deleteGalleryImage } from '../services/profileService.js'
-import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { updateUser } from '../store/slices/authSlice'
+import { useAuth } from '../context/AuthContext.jsx'
 
 export default function EditProfilePage() {
   const nav = useNavigate()
-  const dispatch = useAppDispatch()
-  const { user: currentUser } = useAppSelector(state => state.auth)
+  const { user: currentUser, setUser } = useAuth()
   const [form, setForm] = useState({
     name: '', fatherName: '', motherName: '', age: '', location: '', education: '', occupation: '', about: ''
   })
@@ -51,7 +49,7 @@ export default function EditProfilePage() {
       
       const res = await updateProfile(fd)
       setInfo('Profile updated successfully!')
-      dispatch(updateUser(res.user))
+      setUser({ ...currentUser, ...res.user })
       setLoading(false)
       setTimeout(() => nav(`/profile/${currentUser.id}`), 1500)
     } catch (error) {

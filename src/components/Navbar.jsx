@@ -1,19 +1,17 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { logout } from '../store/slices/authSlice'
+import { useAuth } from '../context/AuthContext.jsx'
 import NotificationDropdown from './NotificationDropdown.jsx'
 
 export default function Navbar(){
-  const { user } = useAppSelector(state => state.auth)
-  const dispatch = useAppDispatch()
+  const { user, logout } = useAuth()
   const nav = useNavigate()
   const [refreshKey, setRefreshKey] = useState(0)
   
   if (!user || user.status === 'pending') return null
   
   const handleLogout = () => {
-    dispatch(logout())
+    logout()
     nav('/login')
   }
 

@@ -12,5 +12,7 @@ export const uploadMedia = async (chatId, file) => {
     headers: { 'Content-Type': 'multipart/form-data' }
   })).data
 }
+export const markAsSeen = async (chatId) => (await api.post(`/chat/${chatId}/seen`)).data
+export const markAsDelivered = async (chatId) => (await api.post(`/chat/${chatId}/delivered`)).data
 export const block = async (chatId) => (await api.post(`/chat/${chatId}/block`)).data
 export const unblock = async (chatId) => (await api.post(`/chat/${chatId}/unblock`)).data

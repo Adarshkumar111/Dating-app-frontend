@@ -1,25 +1,25 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { login, clearError } from '../store/slices/authSlice'
+import { useAuth } from '../context/AuthContext.jsx'
 
 export default function LoginPage() {
-  const dispatch = useAppDispatch()
-  const { loading, error } = useAppSelector(state => state.auth)
+  const { login } = useAuth()
   const nav = useNavigate()
   const [form, setForm] = useState({ contact:'', email:'', password:'' })
+  const [loading, setLoading] = useState(false)
   
   const onChange = (e)=> setForm({...form,[e.target.name]: e.target.value})
   
   const onSubmit = async (e)=>{
     e.preventDefault()
-    dispatch(clearError())
-    
-    const result = await dispatch(login(form))
-    if (result.type === 'auth/login/fulfilled') {
+    setLoading(true)
+    try {
+      await login(form)
       nav('/dashboard')
-    } else if (result.payload) {
-      alert(result.payload)
+    } catch (error) {
+      alert(error.response?.data?.message || 'Login failed. Make sure backend is running.')
+    } finally {
+      setLoading(false)
     }
   }
 
