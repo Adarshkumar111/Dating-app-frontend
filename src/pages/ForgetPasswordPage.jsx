@@ -5,7 +5,7 @@ import { requestPasswordReset, resetPassword } from '../services/passwordService
 export default function ForgetPasswordPage() {
   const nav = useNavigate()
   const [step, setStep] = useState(1) // 1: request OTP, 2: verify OTP & reset
-  const [contact, setContact] = useState('')
+  const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -16,8 +16,8 @@ export default function ForgetPasswordPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await requestPasswordReset({ contact })
-      setInfo(`OTP sent to ${contact}${res.otp ? ` (Dev: ${res.otp})` : ''}`)
+      await requestPasswordReset({ email })
+      setInfo(`OTP sent to ${email}`)
       setStep(2)
       setLoading(false)
     } catch (error) {
@@ -34,7 +34,7 @@ export default function ForgetPasswordPage() {
     }
     setLoading(true)
     try {
-      await resetPassword({ contact, otp, newPassword })
+      await resetPassword({ email, otp, newPassword })
       setInfo('Password reset successful! Redirecting to login...')
       setLoading(false)
       setTimeout(() => nav('/login'), 2000)
@@ -53,12 +53,13 @@ export default function ForgetPasswordPage() {
 
         {step === 1 && (
           <form onSubmit={handleRequestOTP} className="space-y-4">
-            <p className="text-gray-600 text-sm mb-4">Enter your contact number to receive an OTP</p>
+            <p className="text-gray-600 text-sm mb-4">Enter your email to receive an OTP</p>
             <input
-              name='contact'
-              placeholder='Contact Number'
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
+              name='email'
+              type='email'
+              placeholder='Email'
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
               required
             />

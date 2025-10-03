@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { toast } from 'react-toastify'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -17,7 +18,13 @@ export default function LoginPage() {
       await login(form)
       nav('/dashboard')
     } catch (error) {
-      alert(error.response?.data?.message || 'Login failed. Make sure backend is running.')
+      const errorData = error.response?.data
+      if (errorData?.needsVerification) {
+        toast.error('Please verify your email first')
+        nav('/verify-email', { state: { email: errorData.email } })
+      } else {
+        toast.error(errorData?.message || 'Login failed. Make sure backend is running.')
+      }
     } finally {
       setLoading(false)
     }

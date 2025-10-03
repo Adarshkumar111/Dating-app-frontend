@@ -12,6 +12,8 @@ import ForgetPasswordPage from './pages/ForgetPasswordPage.jsx'
 import ChatPage from './pages/ChatPage.jsx'
 import PremiumPage from './pages/PremiumPage.jsx'
 import AdminPanelPage from './pages/AdminPanelPage.jsx'
+import BlockedUsersPage from './pages/BlockedUsersPage.jsx'
+import VerifyEmailPage from './pages/VerifyEmailPage.jsx'
 
 function PrivateRoute({ children, allowPending = false }) {
   const { token, user } = useAuth()
@@ -30,6 +32,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forget-password" element={<ForgetPasswordPage />} />
         <Route path="/waiting" element={<PrivateRoute allowPending={true}><WaitingApprovalPage /></PrivateRoute>} />
@@ -39,6 +42,7 @@ export default function App() {
         <Route path="/chat/:chatId" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
         <Route path="/premium" element={<PrivateRoute><PremiumPage /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><AdminPanelPage /></PrivateRoute>} />
+        <Route path="/blocked-users" element={<PrivateRoute><BlockedUsersPage /></PrivateRoute>} />
       </Routes>
     </>
   )

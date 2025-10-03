@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { signup } from '../services/authService.js'
+import { toast } from 'react-toastify'
 
 export default function SignupPage() {
   const nav = useNavigate()
@@ -24,8 +25,8 @@ export default function SignupPage() {
       if (profilePhoto) fd.append('profilePhoto', profilePhoto)
       await signup(fd)
       setLoading(false)
-      alert('Signup successful! Please login and wait for admin approval.')
-      nav('/login')
+      toast.success('OTP sent on your mail')
+      nav('/verify-email', { state: { email: form.email } })
     } catch (error) {
       setLoading(false)
       alert(error.response?.data?.message || 'Signup failed')
@@ -48,7 +49,7 @@ export default function SignupPage() {
           </select>
           <input name='location' placeholder='Location' value={form.location} onChange={onChange} className="border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
           <input name='contact' placeholder='Contact (phone)' value={form.contact} onChange={onChange} className="border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
-          <input name='email' placeholder='Email' value={form.email} onChange={onChange} className="border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
+          <input name='email' placeholder='Email (required)' value={form.email} onChange={onChange} required className="border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
           <input type='password' name='password' placeholder='Password' value={form.password} onChange={onChange} className="border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
           <input name='education' placeholder='Education' value={form.education} onChange={onChange} className="border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
           <input name='occupation' placeholder='Occupation' value={form.occupation} onChange={onChange} className="border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
