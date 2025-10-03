@@ -18,3 +18,6 @@ export const getPremiumPlans = async () => (await api.get('/admin/premium-plans'
 export const createPremiumPlan = async (plan) => (await api.post('/admin/premium-plans', plan)).data
 export const updatePremiumPlan = async (planId, plan) => (await api.put(`/admin/premium-plans/${planId}`, plan)).data
 export const deletePremiumPlan = async (planId) => (await api.delete(`/admin/premium-plans/${planId}`)).data
+
+// Initialize default data
+export const initializeDefaultData = async () => (await api.post('/admin/initialize')).data

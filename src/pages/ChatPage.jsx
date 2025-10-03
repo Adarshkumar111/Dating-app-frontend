@@ -135,10 +135,19 @@ export default function ChatPage() {
         e.preventDefault()
         if (!text.trim() || !chatData) return
 
+        // Check if blocked before sending
+        if (chatData.isBlockedByMe || chatData.isBlockedByThem) {
+            return // Silently prevent send
+        }
+
         try {
             await sendMsg(chatData.chatId, { messageText: text, messageType: 'text' })
             setText('')
         } catch (e) {
+            // Don't show alert for block errors
+            if (e.response?.data?.blocked) {
+                return
+            }
             alert(e.response?.data?.message || 'Failed to send')
         }
     }
@@ -298,13 +307,12 @@ export default function ChatPage() {
 
     const handleBlockUser = async () => {
         const otherUser = getOtherUser()
-        if (!confirm(`Are you sure you want to block ${otherUser?.name}? You won't be able to see their messages or profile.`)) return
+        if (!confirm(`Block ${otherUser?.name}? They won't be able to send you messages or view your profile. Old messages will remain visible.`)) return
         try {
             await blockUser(otherUser._id)
-            setIsUserBlocked(true)
             setShowOptions(false)
-            alert('User blocked successfully. You can unblock them from your profile settings.')
-            navigate('/dashboard')
+            // Reload chat to reflect block status
+            await loadChat()
         } catch (e) {
             alert(e.response?.data?.message || 'Failed to block user')
         }
@@ -312,12 +320,12 @@ export default function ChatPage() {
 
     const handleUnblockUser = async () => {
         const otherUser = getOtherUser()
+        if (!confirm(`Unblock ${otherUser?.name}? You'll need to send a follow request again to chat.`)) return
         try {
             await unblockUser(otherUser._id)
-            setIsUserBlocked(false)
             setShowOptions(false)
-            alert('User unblocked successfully')
-            loadChat()
+            alert('User unblocked. Send a follow request to connect again.')
+            await loadChat()
         } catch (e) {
             alert(e.response?.data?.message || 'Failed to unblock user')
         }
@@ -342,10 +350,10 @@ export default function ChatPage() {
                     </div>
                     <div>
                         <div className="font-semibold text-lg">{otherUser?.name || 'Chat'}</div>
-                        {chatData?.isBlocked ? (
+                        {(chatData?.isBlockedByMe || chatData?.isBlockedByThem) ? (
                             <div className="text-sm text-red-200 flex items-center gap-1">
                                 <MdBlock />
-                                {String(chatData.blockedBy) === String(currentUser.id) ? 'You blocked this user' : 'You are blocked'}
+                                {chatData.isBlockedByMe ? 'You blocked this user' : 'You are blocked'}
                             </div>
                         ) : (
                             <div className="text-sm text-pink-100">Click to view profile</div>
@@ -560,12 +568,33 @@ export default function ChatPage() {
 
             {/* Input */}
             <div className="p-3 border-t bg-white">
-                {chatData?.isBlocked && (
-                    <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-center text-red-700 text-sm">
-                        <MdBlock className="inline text-lg mr-1" />
-                        {String(chatData.blockedBy) === String(currentUser.id)
-                            ? 'You have blocked this user. Unblock to send messages.'
-                            : 'You cannot send messages. This user has blocked you.'}
+                {(chatData?.isBlockedByMe || chatData?.isBlockedByThem) && (
+                    <div className="mb-3 p-4 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-red-700">
+                                <MdBlock className="text-2xl" />
+                                <div>
+                                    <div className="font-semibold">
+                                        {chatData.isBlockedByMe
+                                            ? 'You blocked this user'
+                                            : 'This user has blocked you'}
+                                    </div>
+                                    <div className="text-sm text-red-600">
+                                        {chatData.isBlockedByMe
+                                            ? 'Unblock to send messages. You\'ll need to connect again.'
+                                            : 'You cannot send messages or view their profile.'}
+                                    </div>
+                                </div>
+                            </div>
+                            {chatData.isBlockedByMe && (
+                                <button
+                                    onClick={handleUnblockUser}
+                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold text-sm"
+                                >
+                                    Unblock
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -578,16 +607,16 @@ export default function ChatPage() {
                     <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'image')} className="hidden" />
                     <input ref={videoInputRef} type="file" accept="video/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'video')} className="hidden" />
 
-                    <button type="button" className="p-2 text-gray-600 hover:bg-gray-100 rounded-full" title="Emoji">
+                    <button type="button" disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full disabled:opacity-30 disabled:cursor-not-allowed" title="Emoji">
                         <BsEmojiSmile className="text-2xl" />
                     </button>
 
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full" title="Image">
+                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full disabled:opacity-30 disabled:cursor-not-allowed" title="Image">
                         <MdImage className="text-2xl" />
                     </button>
 
                     <div className="relative">
-                        <button type="button" onClick={() => setShowMediaMenu(!showMediaMenu)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
+                        <button type="button" onClick={() => setShowMediaMenu(!showMediaMenu)} disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full disabled:opacity-30 disabled:cursor-not-allowed">
                             <IoMdAdd className="text-2xl" />
                         </button>
                         {showMediaMenu && (
@@ -618,12 +647,12 @@ export default function ChatPage() {
                     <input
                         value={text}
                         onChange={e => setText(e.target.value)}
-                        placeholder={chatData?.isBlocked ? "Chat is blocked" : "Type a message"}
-                        disabled={chatData?.isBlocked}
+                        placeholder={(chatData?.isBlockedByMe || chatData?.isBlockedByThem) ? "Cannot send messages" : "Type a message"}
+                        disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem}
                         className="flex-1 px-4 py-2 rounded-full border focus:outline-none focus:ring-2 focus:ring-pink-400 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
 
-                    <button type="submit" disabled={!text.trim() || uploading || chatData?.isBlocked} className="p-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button type="submit" disabled={!text.trim() || uploading || chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed">
                         <MdSend className="text-2xl" />
                     </button>
                 </form>

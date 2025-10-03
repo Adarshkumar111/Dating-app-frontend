@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { getPremiumPlans } from '../services/adminService.js'
+import api from '../services/http.js'
 import { MdStar, MdCheck, MdFlashOn } from 'react-icons/md'
 
 export default function PremiumPage(){
@@ -13,7 +13,8 @@ export default function PremiumPage(){
 
   const loadPlans = async () => {
     try {
-      const data = await getPremiumPlans()
+      // Use public endpoint so regular users can see plans
+      const { data } = await api.get('/public/premium-plans')
       setPlans(data)
       setLoading(false)
     } catch (e) {

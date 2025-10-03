@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { getNotifications } from '../services/notificationService.js'
-import { respond } from '../services/requestService.js'
+import { respondToRequest } from '../services/requestService.js'
 
 export default function NotificationDropdown({ onUpdate }) {
   const [notifications, setNotifications] = useState([])
@@ -37,7 +37,7 @@ export default function NotificationDropdown({ onUpdate }) {
   const handleRespond = async (requestId, action) => {
     setLoading(true)
     try {
-      await respond({ requestId, action })
+      await respondToRequest({ requestId, action })
       await loadNotifications()
       if (onUpdate) onUpdate()
     } catch (e) {

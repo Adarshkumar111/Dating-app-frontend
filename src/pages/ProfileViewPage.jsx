@@ -16,6 +16,7 @@ export default function ProfileViewPage() {
   const [chatHistory, setChatHistory] = useState([])
   const [showAdminMenu, setShowAdminMenu] = useState(false)
   const [loadingChats, setLoadingChats] = useState(false)
+  const [expandedChat, setExpandedChat] = useState(null)
 
   const loadProfile = async () => {
     try {
@@ -28,6 +29,12 @@ export default function ProfileViewPage() {
         setTimeout(() => loadChatHistory(), 100)
       }
     } catch (e) {
+      // Handle blocked user case
+      if (e.response?.data?.blocked) {
+        setProfile({ blocked: true, name: e.response.data.name })
+        setLoading(false)
+        return
+      }
       setInfo(e.response?.data?.message || 'Error loading profile')
       setLoading(false)
     }
@@ -69,8 +76,8 @@ export default function ProfileViewPage() {
     }
   }
 
-  const openChat = (chatId, otherUserId) => {
-    nav(`/chat/${otherUserId}`)
+  const toggleChat = (chatId) => {
+    setExpandedChat(expandedChat === chatId ? null : chatId)
   }
 
   useEffect(() => {
@@ -102,10 +109,6 @@ export default function ProfileViewPage() {
 
   const isOwnProfile = String(currentUser?.id) === String(id)
   const isAdmin = currentUser?.isAdmin
-  
-  console.log('Profile data:', profile)
-  console.log('Is Admin:', isAdmin)
-  console.log('Is Own Profile:', isOwnProfile)
 
   return (
     <div className="max-w-3xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg font-sans">
@@ -216,13 +219,6 @@ export default function ProfileViewPage() {
       {/* Profile Details */}
       {(profile.isConnected || isOwnProfile || isAdmin) ? (
         <>
-          {/* Debug Info (temporary) */}
-          {isAdmin && !isOwnProfile && (
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs">
-              <strong>Debug:</strong> Profile keys: {Object.keys(profile).join(', ')}
-            </div>
-          )}
-          
           {/* Admin-only fields */}
           {isAdmin && !isOwnProfile && (
             <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -267,7 +263,7 @@ export default function ProfileViewPage() {
             <div className="mb-6">
               <h3 className="font-semibold text-gray-800 mb-3 text-lg flex items-center gap-2">
                 <MdChat className="text-blue-500" />
-                Chat History
+                Chat History ({chatHistory.length} conversation{chatHistory.length !== 1 ? 's' : ''})
               </h3>
               {loadingChats ? (
                 <div className="text-center py-4 text-gray-500">Loading chats...</div>
@@ -276,48 +272,90 @@ export default function ProfileViewPage() {
                   No chat history found
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {chatHistory.map((chat) => (
                     <div
                       key={chat.chatId}
-                      onClick={() => openChat(chat.chatId, chat.otherUser._id)}
-                      className="p-4 bg-gray-50 rounded-lg border hover:bg-gray-100 hover:border-blue-300 transition cursor-pointer"
+                      className="bg-white border-2 border-gray-200 rounded-lg overflow-hidden"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
-                          {chat.otherUser.profilePhoto ? (
-                            <img
-                              src={chat.otherUser.profilePhoto}
-                              alt=""
-                              className="w-12 h-12 rounded-full object-cover"
-                            />
-                          ) : (
-                            chat.otherUser.name?.[0]?.toUpperCase()
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold text-gray-800">{chat.otherUser.name}</h4>
-                            {chat.isBlocked && (
-                              <span className="text-xs px-2 py-1 bg-red-100 text-red-600 rounded-full">
-                                Blocked
-                              </span>
+                      {/* Chat Header - Clickable */}
+                      <div
+                        onClick={() => toggleChat(chat.chatId)}
+                        className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 cursor-pointer hover:from-blue-100 hover:to-purple-100 transition"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+                            {chat.otherUser.profilePhoto ? (
+                              <img
+                                src={chat.otherUser.profilePhoto}
+                                alt=""
+                                className="w-12 h-12 rounded-full object-cover"
+                              />
+                            ) : (
+                              chat.otherUser.name?.[0]?.toUpperCase()
                             )}
                           </div>
-                          <p className="text-sm text-gray-600">{chat.otherUser.email || chat.otherUser.contact}</p>
-                          {chat.lastMessage && (
-                            <p className="text-xs text-gray-500 mt-1 truncate">
-                              Last: {chat.lastMessage.text} • {new Date(chat.lastMessage.sentAt).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-semibold text-blue-600">
-                            {chat.messageCount} msgs
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-gray-800">{chat.otherUser.name}</h4>
+                              {chat.isBlocked && (
+                                <span className="text-xs px-2 py-1 bg-red-100 text-red-600 rounded-full">
+                                  Blocked
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600">{chat.otherUser.email || chat.otherUser.contact}</p>
+                            {chat.lastMessage && (
+                              <p className="text-xs text-gray-500 mt-1 truncate">
+                                Last: {chat.lastMessage.text} • {new Date(chat.lastMessage.sentAt).toLocaleDateString()}
+                              </p>
+                            )}
                           </div>
-                          <div className="text-xs text-gray-500">Click to view</div>
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-blue-600">
+                              {chat.messageCount} message{chat.messageCount !== 1 ? 's' : ''}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {expandedChat === chat.chatId ? '▲ Hide' : '▼ Show'}
+                            </div>
+                          </div>
                         </div>
                       </div>
+
+                      {/* Messages - Expandable */}
+                      {expandedChat === chat.chatId && (
+                        <div className="p-4 bg-gray-50 max-h-96 overflow-y-auto">
+                          {chat.messages && chat.messages.length > 0 ? (
+                            <div className="space-y-2">
+                              {chat.messages.map((msg, idx) => {
+                                const isTargetUser = String(msg.sender) === String(id);
+                                return (
+                                  <div
+                                    key={msg._id || idx}
+                                    className={`flex ${isTargetUser ? 'justify-start' : 'justify-end'}`}
+                                  >
+                                    <div className={`max-w-[70%] ${isTargetUser ? 'bg-white' : 'bg-blue-500 text-white'} p-3 rounded-lg shadow`}>
+                                      <div className="text-xs font-semibold mb-1 opacity-75">
+                                        {msg.senderName}
+                                      </div>
+                                      <div className="text-sm break-words">
+                                        {msg.text || `[${msg.messageType}]`}
+                                      </div>
+                                      <div className="text-xs mt-1 opacity-70">
+                                        {new Date(msg.sentAt).toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-center py-4 text-gray-500">
+                              No messages in this chat
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

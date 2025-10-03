@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { listOpposite, rejectUser, getFriends } from '../services/userService.js';
-import { sendRequest, unfollow } from '../services/requestService.js';
+import { sendRequest, unfollow, cancelRequest } from '../services/requestService.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BsChatDots } from 'react-icons/bs';
 
@@ -66,8 +66,9 @@ export default function DashboardPage() {
       loadUsers();
     } catch (e) {
       if (e.response?.status === 429 && e.response?.data?.needsPremium) {
-        // Redirect to premium page if daily limit reached
-        navigate('/premium');
+        // Show message and redirect to premium page if daily limit reached
+        setInfo(`Daily request limit reached (${e.response.data.limit} requests). Redirecting to Premium...`);
+        setTimeout(() => navigate('/premium'), 2000);
         return;
       }
       setInfo(e.response?.data?.message || 'Error');
@@ -88,6 +89,16 @@ export default function DashboardPage() {
     try {
       await unfollow(id);
       setInfo('Unfollowed');
+      loadUsers();
+    } catch (e) {
+      setInfo(e.response?.data?.message || 'Error');
+    }
+  };
+
+  const handleCancelRequest = async (id) => {
+    try {
+      await cancelRequest(id);
+      setInfo('Request cancelled');
       loadUsers();
     } catch (e) {
       setInfo(e.response?.data?.message || 'Error');
@@ -119,7 +130,13 @@ export default function DashboardPage() {
       </div>
 
       {info && (
-        <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg">{info}</div>
+        <div className={`mb-4 p-3 rounded-lg ${
+          info.includes('limit reached') || info.includes('Redirecting') 
+            ? 'bg-orange-50 text-orange-700 border border-orange-200' 
+            : 'bg-blue-50 text-blue-700'
+        }`}>
+          {info}
+        </div>
       )}
       
       {/* Discover Tab */}
@@ -173,10 +190,10 @@ export default function DashboardPage() {
                 
                 {u.requestStatus === 'pending' && u.requestDirection === 'sent' && (
                   <button
-                    disabled
-                    className="flex-1 bg-gray-300 text-gray-600 py-2 rounded-lg font-semibold cursor-not-allowed"
+                    onClick={() => handleCancelRequest(u._id)}
+                    className="flex-1 bg-yellow-100 text-yellow-700 py-2 rounded-lg font-semibold hover:bg-yellow-200 transition border border-yellow-300"
                   >
-                    Pending...
+                    ⏳ Pending (Click to Cancel)
                   </button>
                 )}
                 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { listUsers, approveUser, deleteUser, searchUsers, getSpammers, getSettings, updateSettings, getPremiumPlans, createPremiumPlan, updatePremiumPlan, deletePremiumPlan } from '../services/adminService.js'
+import { listUsers, approveUser, deleteUser, searchUsers, getSpammers, getSettings, updateSettings, getPremiumPlans, createPremiumPlan, updatePremiumPlan, deletePremiumPlan, initializeDefaultData } from '../services/adminService.js'
 import { MdWarning, MdSearch, MdVisibility, MdDelete, MdCheckCircle, MdSettings, MdStar, MdAdd, MdEdit } from 'react-icons/md'
 
 export default function AdminPanelPage() {
@@ -158,9 +158,30 @@ export default function AdminPanelPage() {
     setShowPlanModal(true)
   }
 
+  const handleInitializeData = async () => {
+    if (!confirm('This will create default premium plans and settings. Continue?')) return
+    try {
+      const result = await initializeDefaultData()
+      setInfo(result.message)
+      if (tab === 'settings') loadSettings()
+      if (tab === 'premium') loadPremiumPlans()
+    } catch (e) {
+      setInfo('Failed to initialize data: ' + (e.response?.data?.message || e.message))
+    }
+  }
+
   return (
     <div className="max-w-6xl mx-auto mt-10 p-6">
-      <h2 className="text-4xl font-bold mb-6 text-gray-800">🛡️ Admin Panel</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-4xl font-bold text-gray-800">🛡️ Admin Panel</h2>
+        <button
+          onClick={handleInitializeData}
+          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold flex items-center gap-2"
+        >
+          <MdSettings /> Initialize Default Data
+        </button>
+      </div>
+      
       {info && (
         <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg border border-green-200">
           {info}
