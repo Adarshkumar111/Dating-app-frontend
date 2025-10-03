@@ -15,35 +15,49 @@ import AdminPanelPage from './pages/AdminPanelPage.jsx'
 import BlockedUsersPage from './pages/BlockedUsersPage.jsx'
 import VerifyEmailPage from './pages/VerifyEmailPage.jsx'
 
-function PrivateRoute({ children, allowPending = false }) {
+function PrivateRoute({ children, allowPending = false, adminOnly = false, noAdmin = false }) {
   const { token, user } = useAuth()
   if (!token) return <Navigate to="/login" replace />
   if (!allowPending && user?.status === 'pending') return <Navigate to="/waiting" replace />
+  
+  // Redirect admins away from user-only routes
+  if (noAdmin && user?.isAdmin) return <Navigate to="/admin" replace />
+  
+  // Redirect non-admins away from admin-only routes
+  if (adminOnly && !user?.isAdmin) return <Navigate to="/dashboard" replace />
+  
   return children
 }
 
 export default function App() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
+  
+  // Determine default route based on user type
+  const getDefaultRoute = () => {
+    if (!user) return "/login"
+    if (user.isAdmin) return "/admin"
+    return "/dashboard"
+  }
   
   return (
-    <>
+    <div className="min-h-screen bg-gray-50">
       {token && <Navbar />}
       {token && <MessageNotificationBanner />}
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" />} />
+        <Route path="/" element={<Navigate to={getDefaultRoute()} />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forget-password" element={<ForgetPasswordPage />} />
         <Route path="/waiting" element={<PrivateRoute allowPending={true}><WaitingApprovalPage /></PrivateRoute>} />
-        <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute noAdmin={true}><DashboardPage /></PrivateRoute>} />
         <Route path="/profile/:id" element={<PrivateRoute><ProfileViewPage /></PrivateRoute>} />
         <Route path="/profile/edit" element={<PrivateRoute><EditProfilePage /></PrivateRoute>} />
-        <Route path="/chat/:chatId" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
-        <Route path="/premium" element={<PrivateRoute><PremiumPage /></PrivateRoute>} />
-        <Route path="/admin" element={<PrivateRoute><AdminPanelPage /></PrivateRoute>} />
+        <Route path="/chat/:chatId" element={<PrivateRoute noAdmin={true}><ChatPage /></PrivateRoute>} />
+        <Route path="/premium" element={<PrivateRoute noAdmin={true}><PremiumPage /></PrivateRoute>} />
+        <Route path="/admin" element={<PrivateRoute adminOnly={true}><AdminPanelPage /></PrivateRoute>} />
         <Route path="/blocked-users" element={<PrivateRoute><BlockedUsersPage /></PrivateRoute>} />
       </Routes>
-    </>
+    </div>
   )
 }

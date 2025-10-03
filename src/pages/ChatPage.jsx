@@ -331,17 +331,32 @@ export default function ChatPage() {
         }
     }
 
-    if (loading) return <div className="text-center mt-20">Loading...</div>
-    if (!chatData) return <div className="text-center mt-20">Chat not found</div>
+    if (loading) return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+            <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800 mx-auto mb-4"></div>
+                <p className="text-blue-800 font-medium">Loading chat...</p>
+            </div>
+        </div>
+    )
+    if (!chatData) return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+            <div className="text-center">
+                <div className="text-6xl mb-4">💬</div>
+                <h2 className="text-2xl font-bold text-blue-800 mb-2">Chat Not Found</h2>
+                <p className="text-gray-600">This conversation doesn't exist or you don't have access to it.</p>
+            </div>
+        </div>
+    )
 
     const otherUser = getOtherUser()
 
     return (
-        <div className="flex flex-col h-screen">
+        <div className="flex flex-col h-screen bg-gray-50">
             {/* Header */}
-            <div className="bg-gradient-to-r from-pink-400 to-orange-400 text-white p-4 flex items-center gap-3 shadow-md relative">
+            <div className="bg-premium-gradient text-white p-4 flex items-center gap-3 shadow-xl relative">
                 <Link to={`/profile/${otherUser?._id}`} className="flex items-center gap-3 hover:opacity-90 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-white text-pink-500 flex items-center justify-center font-bold text-xl">
+                    <div className="w-12 h-12 rounded-full bg-white text-blue-800 flex items-center justify-center font-bold text-xl shadow-lg">
                         {otherUser?.profilePhoto ? (
                             <img src={otherUser.profilePhoto} alt="" className="w-12 h-12 rounded-full object-cover" />
                         ) : (
@@ -356,7 +371,7 @@ export default function ChatPage() {
                                 {chatData.isBlockedByMe ? 'You blocked this user' : 'You are blocked'}
                             </div>
                         ) : (
-                            <div className="text-sm text-pink-100">Click to view profile</div>
+                            <div className="text-sm text-amber-200">Click to view profile</div>
                         )}
                     </div>
                 </Link>
@@ -369,7 +384,7 @@ export default function ChatPage() {
                 <div className="relative">
                     <button
                         onClick={() => setShowOptions(!showOptions)}
-                        className="p-2 hover:bg-pink-500 rounded-full transition"
+                        className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-all duration-300"
                     >
                         <MdMoreVert className="text-2xl" />
                     </button>
@@ -408,9 +423,9 @@ export default function ChatPage() {
 
             {/* Notification Popup */}
             {notification && (
-                <div className="fixed top-20 right-4 z-50 bg-white rounded-lg shadow-2xl border p-4 max-w-sm animate-slide-in">
+                <div className="fixed top-20 right-4 z-50 bg-white rounded-xl shadow-2xl border p-4 max-w-sm animate-slide-in">
                     <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 rounded-full bg-pink-500 text-white flex items-center justify-center font-bold flex-shrink-0">
+                        <div className="w-12 h-12 rounded-full bg-premium-gradient text-white flex items-center justify-center font-bold flex-shrink-0">
                             {notification.photo ? (
                                 <img src={notification.photo} alt="" className="w-12 h-12 rounded-full object-cover" />
                             ) : (
@@ -429,14 +444,17 @@ export default function ChatPage() {
             )}
 
             {/* Messages */}
-            <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-2 bg-gray-50">
+            <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3 bg-gradient-to-b from-gray-50 to-blue-50">
                 {messages.map((m) => {
                     const status = getMessageStatus(m)
                     return (
                         <div
                             key={m._id}
                             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, message: m }) }}
-                            className={`max-w-[70%] p-3 rounded-2xl break-words relative group ${m.fromSelf ? 'self-end bg-pink-400 text-white' : 'self-start bg-white border'
+                            className={`max-w-[70%] p-4 rounded-2xl break-words relative group shadow-lg transition-all duration-300 hover:shadow-xl ${
+                                m.fromSelf 
+                                    ? 'self-end bg-coral-gradient text-white' 
+                                    : 'self-start bg-white border border-blue-100'
                                 }`}
                         >
                             {m.deletedForEveryone ? (
@@ -459,26 +477,26 @@ export default function ChatPage() {
                             )}
 
                             {!m.deletedForEveryone && m.reactions?.length > 0 && (
-                                <div className="absolute -bottom-2 right-2 flex gap-1 bg-white rounded-full px-2 py-0.5 shadow">
-                                    {m.reactions.map((r, idx) => <span key={idx} className="text-sm">{r.emoji}</span>)}
+                                <div className="absolute -bottom-2 right-2 flex gap-1 bg-white rounded-full px-3 py-1 shadow-lg border border-blue-100">
+                                    {m.reactions.map((r, idx) => <span key={idx} className="text-lg">{r.emoji}</span>)}
                                 </div>
                             )}
 
                             {!m.deletedForEveryone && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setReactionMenu({ x: e.clientX, y: e.clientY, message: m }) }}
-                                    className="absolute -top-2 right-2 opacity-0 group-hover:opacity-100 bg-white rounded-full p-1 shadow"
+                                    className="absolute -top-2 right-2 opacity-0 group-hover:opacity-100 bg-white rounded-full p-2 shadow-lg border border-blue-100 hover:scale-110 transition-all duration-300"
                                 >
                                     😊
                                 </button>
                             )}
 
-                            <div className={`text-xs mt-1 flex items-center gap-1 ${m.fromSelf ? 'text-pink-100' : 'text-gray-500'}`}>
+                            <div className={`text-xs mt-2 flex items-center gap-1 ${m.fromSelf ? 'text-pink-100' : 'text-gray-500'}`}>
                                 <span>{new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                 {status && (
                                     <>
                                         {status.icon}
-                                        {status.text && <span className="text-blue-500 font-medium">{status.text}</span>}
+                                        {status.text && <span className="text-blue-400 font-medium">{status.text}</span>}
                                     </>
                                 )}
                             </div>
@@ -492,7 +510,7 @@ export default function ChatPage() {
             {contextMenu && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} />
-                    <div className="fixed z-50 bg-white border rounded-lg shadow-xl py-2 min-w-[180px]" style={{ top: contextMenu.y, left: contextMenu.x }}>
+                    <div className="fixed z-50 bg-white border border-blue-100 rounded-xl shadow-2xl py-2 min-w-[180px]" style={{ top: contextMenu.y, left: contextMenu.x }}>
                         <button onClick={() => handleDeleteMessage(contextMenu.message._id, 'forMe')} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm">
                             Delete for Me
                         </button>
@@ -509,9 +527,9 @@ export default function ChatPage() {
             {reactionMenu && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setReactionMenu(null)} />
-                    <div className="fixed z-50 bg-white border rounded-full shadow-xl px-3 py-2 flex gap-2" style={{ top: reactionMenu.y - 50, left: reactionMenu.x - 100 }}>
+                    <div className="fixed z-50 bg-white border border-blue-100 rounded-full shadow-2xl px-4 py-3 flex gap-3" style={{ top: reactionMenu.y - 50, left: reactionMenu.x - 100 }}>
                         {['❤️', '😂', '😮', '😢', '🙏', '👍'].map(emoji => (
-                            <button key={emoji} onClick={() => handleReaction(reactionMenu.message._id, emoji)} className="text-2xl hover:scale-125 transition">
+                            <button key={emoji} onClick={() => handleReaction(reactionMenu.message._id, emoji)} className="text-2xl hover:scale-125 transition-all duration-300 hover:bg-blue-50 rounded-full p-1">
                                 {emoji}
                             </button>
                         ))}
@@ -528,25 +546,25 @@ export default function ChatPage() {
                         <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-4">
                             {cameraMode === 'photo' ? (
                                 <>
-                                    <button onClick={capturePhoto} className="bg-white text-gray-900 px-6 py-3 rounded-full font-semibold">
-                                        📸 Capture
+                                    <button onClick={capturePhoto} className="btn-secondary">
+                                        📸 Capture Photo
                                     </button>
-                                    <button onClick={closeCamera} className="bg-red-500 text-white px-6 py-3 rounded-full font-semibold">
+                                    <button onClick={closeCamera} className="btn-accent">
                                         ✕ Cancel
                                     </button>
                                 </>
                             ) : (
                                 <>
                                     {!isRecordingVideo ? (
-                                        <button onClick={startVideoRecording} className="bg-red-500 text-white px-6 py-3 rounded-full font-semibold">
-                                            ⏺ Record
+                                        <button onClick={startVideoRecording} className="btn-accent">
+                                            ⏺ Start Recording
                                         </button>
                                     ) : (
-                                        <button onClick={stopVideoRecording} className="bg-white text-gray-900 px-6 py-3 rounded-full font-semibold animate-pulse">
-                                            ⏹ Stop
+                                        <button onClick={stopVideoRecording} className="btn-secondary animate-pulse">
+                                            ⏹ Stop Recording
                                         </button>
                                     )}
-                                    <button onClick={closeCamera} className="bg-gray-500 text-white px-6 py-3 rounded-full font-semibold">
+                                    <button onClick={closeCamera} className="btn-primary">
                                         ✕ Cancel
                                     </button>
                                 </>
@@ -567,14 +585,14 @@ export default function ChatPage() {
             )}
 
             {/* Input */}
-            <div className="p-3 border-t bg-white">
+            <div className="p-4 border-t border-blue-100 bg-white shadow-lg">
                 {(chatData?.isBlockedByMe || chatData?.isBlockedByThem) && (
-                    <div className="mb-3 p-4 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg">
+                    <div className="mb-4 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-red-700">
+                            <div className="flex items-center gap-3 text-red-700">
                                 <MdBlock className="text-2xl" />
                                 <div>
-                                    <div className="font-semibold">
+                                    <div className="font-semibold text-red-800">
                                         {chatData.isBlockedByMe
                                             ? 'You blocked this user'
                                             : 'This user has blocked you'}
@@ -589,7 +607,7 @@ export default function ChatPage() {
                             {chatData.isBlockedByMe && (
                                 <button
                                     onClick={handleUnblockUser}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold text-sm"
+                                    className="btn-primary text-sm"
                                 >
                                     Unblock
                                 </button>
@@ -598,31 +616,31 @@ export default function ChatPage() {
                     </div>
                 )}
 
-                {uploading && <div className="mb-2 text-sm text-blue-600 flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                    Uploading...
+                {uploading && <div className="mb-3 text-sm text-blue-800 flex items-center gap-2 bg-blue-50 p-3 rounded-lg">
+                    <div className="w-4 h-4 border-2 border-blue-800 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="font-medium">Uploading media...</span>
                 </div>}
 
-                <form onSubmit={onSend} className="flex gap-2 items-center relative">
+                <form onSubmit={onSend} className="flex gap-3 items-center relative">
                     <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'image')} className="hidden" />
                     <input ref={videoInputRef} type="file" accept="video/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'video')} className="hidden" />
 
-                    <button type="button" disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full disabled:opacity-30 disabled:cursor-not-allowed" title="Emoji">
+                    <button type="button" disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300" title="Emoji">
                         <BsEmojiSmile className="text-2xl" />
                     </button>
 
-                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full disabled:opacity-30 disabled:cursor-not-allowed" title="Image">
+                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300" title="Image">
                         <MdImage className="text-2xl" />
                     </button>
 
                     <div className="relative">
-                        <button type="button" onClick={() => setShowMediaMenu(!showMediaMenu)} disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full disabled:opacity-30 disabled:cursor-not-allowed">
+                        <button type="button" onClick={() => setShowMediaMenu(!showMediaMenu)} disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300">
                             <IoMdAdd className="text-2xl" />
                         </button>
                         {showMediaMenu && (
                             <>
                                 <div className="fixed inset-0 z-30" onClick={() => setShowMediaMenu(false)} />
-                                <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-xl border py-2 min-w-[200px] z-40">
+                                <div className="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-2xl border border-blue-100 py-2 min-w-[200px] z-40">
                                     <button onClick={() => openCamera('photo')} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100 text-left">
                                         <MdCamera className="text-xl text-blue-500" />
                                         <span className="text-sm font-medium">Take Photo</span>
@@ -647,13 +665,13 @@ export default function ChatPage() {
                     <input
                         value={text}
                         onChange={e => setText(e.target.value)}
-                        placeholder={(chatData?.isBlockedByMe || chatData?.isBlockedByThem) ? "Cannot send messages" : "Type a message"}
+                        placeholder={(chatData?.isBlockedByMe || chatData?.isBlockedByThem) ? "Cannot send messages" : "Type a message..."}
                         disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem}
-                        className="flex-1 px-4 py-2 rounded-full border focus:outline-none focus:ring-2 focus:ring-pink-400 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        className="flex-1 px-4 py-3 rounded-full border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all duration-300"
                     />
 
-                    <button type="submit" disabled={!text.trim() || uploading || chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 bg-pink-500 text-white rounded-full hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <MdSend className="text-2xl" />
+                    <button type="submit" disabled={!text.trim() || uploading || chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-3 bg-coral-gradient text-white rounded-full hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105">
+                        <MdSend className="text-xl" />
                     </button>
                 </form>
             </div>

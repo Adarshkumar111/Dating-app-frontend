@@ -31,46 +31,98 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-r from-pink-100 to-orange-200 font-sans">
-      <div className="bg-white p-10 rounded-xl shadow-lg w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">Login - M Nikah</h2>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
-          <input 
-            name='email' 
-            placeholder='Email (optional if using contact)' 
-            value={form.email} 
-            onChange={onChange} 
-            className="border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400"
-          />
-          <input 
-            name='contact' 
-            placeholder='Contact' 
-            value={form.contact} 
-            onChange={onChange} 
-            className="border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400"
-          />
-          <input 
-            type='password' 
-            name='password' 
-            placeholder='Password' 
-            value={form.password} 
-            onChange={onChange} 
-            className="border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400"
-          />
-          <button 
-            disabled={loading} 
-            type='submit'
-            className={`bg-pink-500 text-white font-semibold py-3 rounded-lg hover:bg-pink-600 transition-colors ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-        <div className="mt-4 text-center">
-          <Link to='/forget-password' className="text-sm text-blue-500 hover:underline">Forgot Password?</Link>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <div className="mx-auto h-16 w-16 bg-premium-gradient rounded-full flex items-center justify-center mb-6 animate-pulse-glow">
+            <span className="text-2xl font-bold text-white">M</span>
+          </div>
+          <h2 className="text-3xl font-bold text-blue-800 mb-2">Welcome Back</h2>
+          <p className="text-gray-600">Sign in to your M Nikah account</p>
         </div>
-        <p className="mt-2 text-center text-gray-600">
-          New user? <Link to='/signup' className="text-pink-500 font-medium hover:underline">Sign up</Link>
-        </p>
+
+        <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-6 transform hover:scale-105 transition-all duration-300">
+          <form onSubmit={onSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-blue-800 mb-2">Email</label>
+                <input 
+                  name='email' 
+                  type='email'
+                  placeholder='Enter your email' 
+                  value={form.email} 
+                  onChange={onChange} 
+                  className="input-premium w-full"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-blue-800 mb-2">Contact (Alternative)</label>
+                <input 
+                  name='contact' 
+                  placeholder='Enter your contact number' 
+                  value={form.contact} 
+                  onChange={onChange} 
+                  className="input-premium w-full"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-blue-800 mb-2">Password</label>
+                <input 
+                  type='password' 
+                  name='password' 
+                  placeholder='Enter your password' 
+                  value={form.password} 
+                  onChange={onChange} 
+                  className="input-premium w-full"
+                />
+              </div>
+            </div>
+
+            <button 
+              disabled={loading} 
+              type='submit'
+              className={`btn-primary w-full ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {loading ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Signing in...
+                </div>
+              ) : (
+                'Sign In'
+              )}
+            </button>
+          </form>
+
+          <div className="text-center space-y-4">
+            <Link 
+              to='/forget-password' 
+              className="text-sm text-pink-500 hover:text-pink-600 font-medium transition-colors duration-300"
+            >
+              Forgot your password?
+            </Link>
+            
+            <div className="border-t border-gray-200 pt-4">
+              <p className="text-gray-600 text-sm">
+                Don't have an account?{' '}
+                <Link 
+                  to='/signup' 
+                  className="text-pink-500 font-semibold hover:text-pink-600 transition-colors duration-300"
+                >
+                  Create Account
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-center">
+          <p className="text-xs text-gray-500">
+            By signing in, you agree to our Terms of Service and Privacy Policy
+          </p>
+        </div>
       </div>
     </div>
   )

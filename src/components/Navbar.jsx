@@ -55,7 +55,7 @@ export default function Navbar(){
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <Link to='/dashboard' className="font-bold text-2xl hover:text-amber-300 transition-all duration-300 transform hover:scale-105">
+          <Link to={user.isAdmin ? '/admin' : '/dashboard'} className="font-bold text-2xl hover:text-amber-300 transition-all duration-300 transform hover:scale-105">
             <span className="text-amber-400">M</span> Nikah
           </Link>
 

@@ -105,182 +105,226 @@ export default function DashboardPage() {
     }
   };
 
-  if (loading) return <div className="text-center mt-10">Loading...</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800 mx-auto mb-4"></div>
+        <p className="text-blue-800 font-medium">Loading...</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="max-w-4xl mx-auto mt-6 p-4">
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setTab('discover')}
-          className={`px-6 py-3 rounded-lg font-semibold transition ${
-            tab === 'discover' ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          Discover
-        </button>
-        <button
-          onClick={() => setTab('friends')}
-          className={`px-6 py-3 rounded-lg font-semibold transition ${
-            tab === 'friends' ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          Messages
-        </button>
-      </div>
-
-      {info && (
-        <div className={`mb-4 p-3 rounded-lg ${
-          info.includes('limit reached') || info.includes('Redirecting') 
-            ? 'bg-orange-50 text-orange-700 border border-orange-200' 
-            : 'bg-blue-50 text-blue-700'
-        }`}>
-          {info}
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-blue-800 mb-2">Welcome to M Nikah</h1>
+          <p className="text-gray-600">Discover your perfect match</p>
         </div>
-      )}
-      
-      {/* Discover Tab */}
-      {tab === 'discover' && (
-      <div className="space-y-6">
-        {users.map(u => (
-          <div key={u._id} className="bg-white shadow-md rounded-xl overflow-hidden">
-            {/* Profile Image */}
-            <div className="h-64 bg-gradient-to-br from-pink-200 to-purple-300 flex items-center justify-center">
-              {u.profilePhoto ? (
-                <img src={u.profilePhoto} alt="profile" className="w-full h-full object-cover" />
-              ) : (
-                <div className="text-6xl font-bold text-white">{u.name?.[0]?.toUpperCase() || '?'}</div>
-              )}
-            </div>
-            
-            {/* Profile Info */}
-            <div className="p-4">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">{u.name}</h3>
-                  {u.age && <p className="text-sm text-gray-600">{u.age} • {u.location}</p>}
-                  {u.about && <p className="text-sm text-gray-500 mt-1">{u.about.slice(0, 100)}</p>}
-                </div>
-                <Link
-                  to={`/profile/${u._id}`}
-                  className="text-blue-600 hover:underline text-sm font-medium"
-                >
-                  View Profile
-                </Link>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="flex gap-2 mt-4">
-                {u.requestStatus === 'none' && (
-                  <>
-                    <button
-                      onClick={() => handleFollow(u._id)}
-                      className="flex-1 bg-gradient-to-r from-pink-500 to-orange-500 text-white py-2 rounded-lg font-semibold hover:from-pink-600 hover:to-orange-600 transition"
-                    >
-                      Follow
-                    </button>
-                    <button
-                      onClick={() => handleReject(u._id)}
-                      className="px-4 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition"
-                    >
-                      ✕
-                    </button>
-                  </>
-                )}
-                
-                {u.requestStatus === 'pending' && u.requestDirection === 'sent' && (
-                  <button
-                    onClick={() => handleCancelRequest(u._id)}
-                    className="flex-1 bg-yellow-100 text-yellow-700 py-2 rounded-lg font-semibold hover:bg-yellow-200 transition border border-yellow-300"
-                  >
-                    ⏳ Pending (Click to Cancel)
-                  </button>
-                )}
-                
-                {u.requestStatus === 'accepted' && (
-                  <>
-                    <Link
-                      to={`/chat/${u._id}`}
-                      className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 transition text-center"
-                    >
-                      💬 Chat
-                    </Link>
-                    <button
-                      onClick={() => handleUnfollow(u._id)}
-                      className="px-6 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition"
-                    >
-                      Unfollow
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-        
-        {users.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            No more profiles to show
+
+        {/* Tabs */}
+        <div className="flex justify-center gap-4 mb-8">
+          <button
+            onClick={() => setTab('discover')}
+            className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+              tab === 'discover' 
+                ? 'bg-premium-gradient text-white shadow-xl' 
+                : 'bg-white text-blue-800 hover:bg-blue-50 shadow-lg border border-blue-200'
+            }`}
+          >
+            🔍 Discover
+          </button>
+          <button
+            onClick={() => setTab('friends')}
+            className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+              tab === 'friends' 
+                ? 'bg-premium-gradient text-white shadow-xl' 
+                : 'bg-white text-blue-800 hover:bg-blue-50 shadow-lg border border-blue-200'
+            }`}
+          >
+            💬 Messages
+          </button>
+        </div>
+
+        {info && (
+          <div className={`mb-6 p-4 rounded-xl text-center font-medium ${
+            info.includes('limit reached') || info.includes('Redirecting') 
+              ? 'bg-amber-50 text-amber-800 border border-amber-200' 
+              : 'bg-blue-50 text-blue-800 border border-blue-200'
+          }`}>
+            {info}
           </div>
         )}
-      </div>
-      )}
-
-      {/* Messages Tab */}
-      {tab === 'friends' && (
-        friends.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="text-6xl mb-4">💬</div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Messages Yet</h3>
-            <p className="text-gray-500">Start following people from the Discover tab!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {friends.map((friend) => (
-              <div 
-                key={friend._id} 
-                onClick={() => navigate(`/chat/${friend._id}`)}
-                className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition cursor-pointer"
-              >
-                <div className="flex items-center p-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
-                    {friend.profilePhoto ? (
-                      <img 
-                        src={friend.profilePhoto} 
-                        alt={friend.name} 
-                        className="w-16 h-16 rounded-full object-cover"
-                      />
-                    ) : (
-                      friend.name?.[0]?.toUpperCase() || '?'
-                    )}
+        
+        {/* Discover Tab */}
+        {tab === 'discover' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {users.map(u => (
+              <div key={u._id} className="bg-white shadow-xl rounded-2xl overflow-hidden transform hover:scale-105 transition-all duration-300 animate-fade-in">
+                {/* Profile Image */}
+                <div className="h-64 bg-premium-gradient flex items-center justify-center relative">
+                  {u.profilePhoto ? (
+                    <img src={u.profilePhoto} alt="profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-6xl font-bold text-white">{u.name?.[0]?.toUpperCase() || '?'}</div>
+                  )}
+                  <div className="absolute top-4 right-4">
+                    <Link
+                      to={`/profile/${u._id}`}
+                      className="bg-white bg-opacity-90 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold hover:bg-opacity-100 transition-all duration-300"
+                    >
+                      View Profile
+                    </Link>
                   </div>
-
-                  <div className="ml-4 flex-1 min-w-0">
-                    <div className="font-bold text-lg text-gray-900 truncate">
-                      {friend.name}
+                </div>
+                
+                {/* Profile Info */}
+                <div className="p-6">
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xl font-bold text-blue-800">{u.name}</h3>
+                      {u.isPremium && (
+                        <span className="px-2 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full text-xs font-semibold">
+                          ⭐ Premium
+                        </span>
+                      )}
                     </div>
-                    {friend.age && friend.location && (
-                      <p className="text-sm text-gray-600">{friend.age} • {friend.location}</p>
-                    )}
-                    {friend.about && (
-                      <p className="text-sm text-gray-500 truncate mt-1">{friend.about}</p>
-                    )}
+                    {u.age && <p className="text-sm text-gray-600 mb-2">{u.age} years • {u.location}</p>}
+                    {u.about && <p className="text-sm text-gray-500 line-clamp-2">{u.about}</p>}
                   </div>
-
-                  <div className="ml-4 relative">
-                    <BsChatDots className="text-3xl text-blue-500" />
-                    {friend.unreadCount > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">
-                        {friend.unreadCount > 9 ? '9+' : friend.unreadCount}
-                      </span>
+                  
+                  {/* Action Buttons */}
+                  <div className="space-y-2">
+                    {u.requestStatus === 'none' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleFollow(u._id)}
+                          className="flex-1 btn-accent"
+                        >
+                          💝 Follow
+                        </button>
+                        <button
+                          onClick={() => handleReject(u._id)}
+                          className="px-4 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all duration-300"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                    
+                    {u.requestStatus === 'pending' && u.requestDirection === 'sent' && (
+                      <button
+                        onClick={() => handleCancelRequest(u._id)}
+                        className="w-full bg-amber-100 text-amber-800 py-3 rounded-lg font-semibold hover:bg-amber-200 transition-all duration-300 border border-amber-300"
+                      >
+                        ⏳ Request Sent (Cancel)
+                      </button>
+                    )}
+                    
+                    {u.requestStatus === 'accepted' && (
+                      <div className="flex gap-2">
+                        <Link
+                          to={`/chat/${u._id}`}
+                          className="flex-1 btn-primary text-center"
+                        >
+                          💬 Chat
+                        </Link>
+                        <button
+                          onClick={() => handleUnfollow(u._id)}
+                          className="px-4 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all duration-300"
+                        >
+                          Unfollow
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
             ))}
+            
+            {users.length === 0 && (
+              <div className="col-span-full text-center py-20">
+                <div className="text-6xl mb-4">💝</div>
+                <h3 className="text-xl font-semibold text-blue-800 mb-2">No More Profiles</h3>
+                <p className="text-gray-500">You've seen all available profiles!</p>
+              </div>
+            )}
           </div>
-        )
-      )}
+        )}
+
+        {/* Messages Tab */}
+        {tab === 'friends' && (
+          friends.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="text-6xl mb-6">💬</div>
+              <h3 className="text-2xl font-bold text-blue-800 mb-3">No Messages Yet</h3>
+              <p className="text-gray-600 mb-6">Start following people from the Discover tab to begin conversations!</p>
+              <button
+                onClick={() => setTab('discover')}
+                className="btn-accent"
+              >
+                🔍 Start Discovering
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {friends.map((friend) => (
+                <div 
+                  key={friend._id} 
+                  onClick={() => navigate(`/chat/${friend._id}`)}
+                  className="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transform hover:scale-105 transition-all duration-300 cursor-pointer animate-fade-in"
+                >
+                  <div className="p-6">
+                    <div className="flex items-center mb-4">
+                      <div className="w-16 h-16 rounded-full bg-premium-gradient flex items-center justify-center text-white font-bold text-2xl flex-shrink-0 relative">
+                        {friend.profilePhoto ? (
+                          <img 
+                            src={friend.profilePhoto} 
+                            alt={friend.name} 
+                            className="w-16 h-16 rounded-full object-cover"
+                          />
+                        ) : (
+                          friend.name?.[0]?.toUpperCase() || '?'
+                        )}
+                        {friend.unreadCount > 0 && (
+                          <span className="absolute -top-2 -right-2 bg-pink-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center animate-pulse-glow">
+                            {friend.unreadCount > 9 ? '9+' : friend.unreadCount}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="ml-4 flex-1 min-w-0">
+                        <div className="font-bold text-lg text-blue-800 truncate mb-1">
+                          {friend.name}
+                        </div>
+                        {friend.age && friend.location && (
+                          <p className="text-sm text-gray-600 mb-1">{friend.age} years • {friend.location}</p>
+                        )}
+                        {friend.about && (
+                          <p className="text-sm text-gray-500 truncate">{friend.about}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-blue-600">
+                        <BsChatDots className="text-xl mr-2" />
+                        <span className="text-sm font-medium">Start Chat</span>
+                      </div>
+                      {friend.unreadCount > 0 && (
+                        <div className="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-xs font-semibold">
+                          {friend.unreadCount} new message{friend.unreadCount > 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+      </div>
     </div>
   );
 }
