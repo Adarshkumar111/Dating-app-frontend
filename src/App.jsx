@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
 import Navbar from './components/Navbar.jsx'
+import MessageNotificationBanner from './components/MessageNotificationBanner.jsx'
 import SignupPage from './pages/SignupPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import WaitingApprovalPage from './pages/WaitingApprovalPage.jsx'
@@ -25,6 +26,7 @@ export default function App() {
   return (
     <>
       {token && <Navbar />}
+      {token && <MessageNotificationBanner />}
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" />} />
         <Route path="/signup" element={<SignupPage />} />
