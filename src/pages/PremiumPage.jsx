@@ -143,19 +143,19 @@ export default function PremiumPage(){
               return (
                 <div
                   key={plan._id}
-                  className={`relative bg-white rounded-2xl shadow-xl overflow-hidden transform hover:scale-105 transition-all duration-300 ${
+                  className={`relative bg-white rounded-2xl shadow-xl overflow-visible transform hover:scale-105 transition-all duration-300 ${
                     isPopular ? 'border-4 border-purple-500 ring-4 ring-purple-100' : 'border border-gray-200'
-                  }`}
+                  } flex flex-col h-full`}
                 >
                   {isPopular && (
-                    <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                      <div className="bg-purple-500 text-white px-6 py-2 rounded-full text-sm font-bold flex items-center gap-2">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                      <div className="bg-purple-600 text-white px-6 py-2 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg">
                         <MdFlashOn /> MOST POPULAR
                       </div>
                     </div>
                   )}
 
-                  <div className={`p-8 ${isPopular ? 'bg-gradient-to-br from-purple-50 to-pink-50' : ''}`}>
+                  <div className={`p-8 ${isPopular ? 'bg-gradient-to-br from-purple-50 to-pink-50' : ''} flex flex-col h-full`}> 
                     <div className="text-center mb-6">
                       <h3 className="text-2xl font-bold text-gray-800 mb-2">{plan.name}</h3>
                       <div className="flex items-center justify-center gap-2 mb-2">
@@ -172,7 +172,7 @@ export default function PremiumPage(){
                       )}
                     </div>
 
-                    <div className="space-y-4 mb-8">
+                    <div className="space-y-4 mb-8 flex-1">
                       <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
                         <MdCheck className="text-green-600 text-xl" />
                         <span className="font-semibold text-gray-800">
@@ -191,10 +191,10 @@ export default function PremiumPage(){
                     <button
                       onClick={() => initiatePayment(plan)}
                       disabled={processingPayment}
-                      className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-2 ${
+                      className={`mt-auto w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-2 ${
                         isPopular
-                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 shadow-lg disabled:opacity-50'
-                          : 'bg-gray-800 text-white hover:bg-gray-900 disabled:opacity-50'
+                          ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-blue-900 hover:from-amber-500 hover:to-yellow-600 shadow-lg disabled:opacity-50'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
                       } ${processingPayment ? 'animate-pulse' : ''}`}
                     >
                       {processingPayment ? (

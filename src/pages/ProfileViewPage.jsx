@@ -1,10 +1,32 @@
 import React, { useEffect, useState, useRef } from 'react'
+import { toast } from 'react-toastify'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getProfile } from '../services/userService.js'
 import { sendRequest, unfollow } from '../services/requestService.js'
-import { getUserChatHistory, adminBlockUser, adminUnblockUser } from '../services/adminService.js'
+import { getUserChatHistory, adminBlockUser, adminUnblockUser, getAppSettings } from '../services/adminService.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { MdMoreVert, MdBlock, MdChat, MdPerson } from 'react-icons/md'
+import {
+  MdMoreVert,
+  MdBlock,
+  MdChat,
+  MdPerson,
+  MdSecurity,
+  MdLocationOn,
+  MdMale,
+  MdFemale,
+  MdStar,
+  MdEdit,
+  MdCake,
+  MdFavorite,
+  MdInfo,
+  MdPhotoCamera,
+  MdLock,
+  MdFamilyRestroom,
+  MdWork,
+  MdLanguage,
+  MdPublic,
+  MdSchool
+} from 'react-icons/md'
 import { io } from 'socket.io-client'
 
 export default function ProfileViewPage() {
@@ -15,6 +37,7 @@ export default function ProfileViewPage() {
   const [loading, setLoading] = useState(true)
   const [info, setInfo] = useState('')
   const [chatHistory, setChatHistory] = useState([])
+  const [profileDisplay, setProfileDisplay] = useState({})
   const [showAdminMenu, setShowAdminMenu] = useState(false)
   const [loadingChats, setLoadingChats] = useState(false)
   const [expandedChat, setExpandedChat] = useState(null)
@@ -22,6 +45,12 @@ export default function ProfileViewPage() {
   // Lightbox for zooming images
   const [lightbox, setLightbox] = useState({ open: false, src: '' })
   const [zoom, setZoom] = useState({ scale: 1, x: 0, y: 0, dragging: false, originX: 0, originY: 0 })
+
+  // Helper to check if a field is enabled by admin. Default true when not specified
+  const showField = (key) => {
+    if (!profileDisplay || Object.keys(profileDisplay).length === 0) return true
+    return !!profileDisplay[key]
+  }
 
   const openLightbox = (src) => {
     setLightbox({ open: true, src })
@@ -117,6 +146,13 @@ export default function ProfileViewPage() {
 
   useEffect(() => {
     loadProfile()
+    // Load admin profile display controls so friends can see fields as configured
+    ;(async () => {
+      try {
+        const app = await getAppSettings()
+        setProfileDisplay(app?.profileDisplayFields || {})
+      } catch {}
+    })()
     // Setup real-time updates for photo request state
     if (currentUser?.id) {
       socketRef.current = io('http://localhost:5000')
@@ -155,11 +191,20 @@ export default function ProfileViewPage() {
 
   const handleFollow = async () => {
     try {
-      await sendRequest({ toUserId: id, type: 'follow' })
-      setInfo('Request sent!')
+      const res = await sendRequest({ toUserId: id, type: 'follow' })
+      if (typeof res?.remaining === 'number' && typeof res?.limit === 'number') {
+        toast.success(`Request sent. You have ${res.remaining} free request${res.remaining === 1 ? '' : 's'} remaining today.`)
+      } else {
+        toast.success('Request sent!')
+      }
       loadProfile()
     } catch (e) {
-      setInfo(e.response?.data?.message || 'Error')
+      if (e.response?.status === 429 && e.response?.data?.needsPremium) {
+        toast.warn(`Daily request limit reached (${e.response.data.limit}). Redirecting to Premium...`)
+        setTimeout(() => nav('/premium'), 2000)
+        return
+      }
+      toast.error(e.response?.data?.message || 'Error')
     }
   }
 
@@ -194,7 +239,7 @@ export default function ProfileViewPage() {
   if (!profile) return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="text-center">
-        <div className="text-6xl mb-4">👤</div>
+        <MdPerson className="text-6xl text-blue-600 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-blue-800 mb-2">Profile Not Found</h2>
         <p className="text-gray-600">This profile doesn't exist or you don't have access to it.</p>
       </div>
@@ -205,13 +250,13 @@ export default function ProfileViewPage() {
   const isAdmin = currentUser?.isAdmin
 
   return (
-    <div className="min-h-screen bg-blue-50 py-8 px-4">
+    <div className="min-h-screen bg-blue-50 py-6 px-3">
       <div className="max-w-4xl mx-auto">
         {isAdmin && !isOwnProfile && (
           <div className="mb-6 p-4 bg-white text-blue-800 rounded-xl border border-blue-200 shadow-md flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-lg text-white">🛡️</span>
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white">
+                <MdSecurity className="text-xl" />
               </div>
               <div>
                 <span className="font-semibold text-lg">Admin View</span>
@@ -260,85 +305,86 @@ export default function ProfileViewPage() {
         )}
         
         {/* Profile Header Card */}
-        <div className="bg-white rounded-3xl shadow-lg overflow-hidden mb-8">
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden mb-6 border border-blue-100">
           {/* Cover Background */}
-          <div className="h-32 bg-blue-500 relative">
-            <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+          <div className="h-36 bg-gradient-to-r from-blue-700 to-blue-500 relative rounded-t-3xl">
+            <div className="absolute inset-0 bg-blue-500"></div>
           </div>
           
           {/* Profile Content */}
           <div className="relative px-8 pb-8">
             {/* Profile Photo */}
-            <div className="flex justify-center -mt-16 mb-6">
+            <div className="flex justify-center -mt-14 mb-4">
               {profile.profilePhoto ? (
                 <img
                   src={transformUrl(profile.profilePhoto)}
                   onError={handleImgError}
                   onClick={() => openLightbox(transformUrl(profile.profilePhoto))}
                   alt="profile"
-                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-2xl cursor-zoom-in"
+                  className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-md cursor-zoom-in ring-2 ring-white/60"
                 />
               ) : (
-                <div className="w-32 h-32 rounded-full bg-premium-gradient flex items-center justify-center border-4 border-white shadow-2xl">
-                  <span className="text-4xl font-bold text-white">{profile.name?.[0]?.toUpperCase() || '?'}</span>
+                <div className="w-20 h-20 rounded-full bg-premium-gradient flex items-center justify-center border-2 border-white shadow-md">
+                  <span className="text-2xl font-bold text-white">{profile.name?.[0]?.toUpperCase() || '?'}</span>
                 </div>
               )}
             </div>
             
             {/* Profile Info */}
             <div className="text-center">
-              <h1 className="text-3xl font-bold text-blue-800 mb-2">{profile.name}</h1>
+              <h1 className="text-2xl font-bold text-blue-800 mb-1">{profile.name}</h1>
               {profile.location && (
-                <div className="flex items-center justify-center gap-2 text-gray-600 mb-4">
-                  <span>📍</span>
+                <div className="flex items-center justify-center gap-2 text-gray-600 mb-3">
+                  <MdLocationOn className="text-blue-500" />
                   <span className="text-lg">{profile.location}</span>
                 </div>
               )}
               
               {/* Basic Info Pills */}
-              <div className="flex flex-wrap justify-center gap-3 mb-6">
+              <div className="flex flex-wrap justify-center gap-2.5 mb-4">
                 {profile.age && (
-                  <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">
+                  <span className="px-3.5 py-1 bg-blue-50 text-blue-800 rounded-full text-xs font-semibold shadow-sm border border-blue-200">
                     {profile.age} years old
                   </span>
                 )}
                 {profile.gender && (
-                  <span className="px-4 py-2 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
-                    {profile.gender === 'male' ? '👨 Male' : '👩 Female'}
+                  <span className="px-3.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 flex items-center gap-1.5 shadow-sm border border-blue-200">
+                    {profile.gender === 'male' ? <MdMale className="text-blue-700" /> : <MdFemale className="text-pink-600" />}
+                    <span className="capitalize">{profile.gender}</span>
                   </span>
                 )}
                 {profile.isPremium && (
-                  <span className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full text-sm font-semibold shadow-lg">
-                    ⭐ Premium
+                  <span className="px-3.5 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full text-xs font-semibold shadow-lg inline-flex items-center gap-1.5">
+                    <MdStar /> Premium
                   </span>
                 )}
               </div>
               
               {profile.status === 'blocked' && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-full text-sm font-semibold mb-4">
-                  <span>🚫</span>
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold mb-3">
+                  <MdBlock />
                   <span>Blocked by Admin</span>
                 </div>
               )}
         
               {/* Action Buttons */}
               {!isOwnProfile && !isAdmin && (
-                <div className="flex flex-wrap justify-center gap-4">
+                <div className="flex flex-wrap justify-center gap-3.5">
                   {!profile.isConnected ? (
                     <button
                       onClick={handleFollow}
-                      className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2"
+                      className="px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2"
                     >
-                      <span>💝</span>
+                      <MdFavorite />
                       <span>Send Follow Request</span>
                     </button>
                   ) : (
                     <>
                       <button
                         onClick={() => nav(`/chat/${id}`)}
-                        className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2"
+                        className="px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2"
                       >
-                        <span>💬</span>
+                        <MdChat />
                         <span>Start Chat</span>
                       </button>
                       {/* Request Photos button: hidden if already accessible */}
@@ -354,20 +400,20 @@ export default function ProfileViewPage() {
                           <button
                             onClick={handleRequestPhotos}
                             disabled={profile.isBlockedByMe || profile.isBlockedByThem}
-                            className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
+                            className={`px-5 py-2.5 rounded-lg font-semibold transition flex items-center gap-2 ${
                               (profile.isBlockedByMe || profile.isBlockedByThem)
                                 ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
                                 : 'bg-blue-600 text-white hover:bg-blue-700'
                             }`}
                           >
-                            <span>📸</span>
+                            <MdPhotoCamera />
                             <span>Request Photos</span>
                           </button>
                         )
                       )}
                       <button
                         onClick={handleUnfollow}
-                        className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-300 font-semibold"
+                        className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-300 font-semibold"
                       >
                         Unfollow
                       </button>
@@ -379,9 +425,9 @@ export default function ProfileViewPage() {
               {isOwnProfile && (
                 <button
                   onClick={() => nav('/profile/edit')}
-                  className="btn-secondary flex items-center gap-2"
+                  className="mx-auto flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-300 text-blue-900 font-semibold shadow hover:bg-blue-500 transition"
                 >
-                  <span>✏️</span>
+                  <MdEdit />
                   <span>Edit Profile</span>
                 </button>
               )}
@@ -396,8 +442,8 @@ export default function ProfileViewPage() {
           {isAdmin && !isOwnProfile && (
             <div className="mb-8 p-6 bg-white rounded-2xl border border-blue-200 shadow-md">
               <h3 className="font-bold text-blue-800 mb-4 text-xl flex items-center gap-2">
-                <span className="text-2xl">📋</span>
-                Admin Information
+                <MdInfo className="text-2xl" />
+                <span>Admin Information</span>
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {profile.email && (
@@ -540,16 +586,16 @@ export default function ProfileViewPage() {
           )}
           
           {/* Personal Details */}
-          <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
-            <h3 className="font-bold text-blue-800 mb-6 text-xl flex items-center gap-2">
-              <span className="text-2xl">👤</span>
-              Personal Details
+          <div className="bg-white rounded-2xl shadow-xl p-5 mb-6 border border-blue-100">
+            <h3 className="font-bold text-blue-800 mb-4 text-lg flex items-center gap-2">
+              <MdPerson className="text-2xl" />
+              <span>Personal Details</span>
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {profile.fatherName && (
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                <div className="bg-blue-50 p-3.5 rounded-xl border border-blue-200">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">👨</span>
+                    <MdPerson className="text-2xl text-blue-600" />
                     <div>
                       <p className="text-sm text-blue-600 font-medium">Father's Name</p>
                       <p className="text-blue-800 font-semibold">{profile.fatherName}</p>
@@ -558,12 +604,12 @@ export default function ProfileViewPage() {
                 </div>
               )}
               {profile.motherName && (
-                <div className="bg-gradient-to-r from-pink-50 to-pink-100 p-4 rounded-xl border border-pink-200">
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">👩</span>
+                    <MdPerson className="text-2xl text-blue-600" />
                     <div>
-                      <p className="text-sm text-pink-600 font-medium">Mother's Name</p>
-                      <p className="text-pink-800 font-semibold">{profile.motherName}</p>
+                      <p className="text-sm text-blue-600 font-medium">Mother's Name</p>
+                      <p className="text-blue-800 font-semibold">{profile.motherName}</p>
                     </div>
                   </div>
                 </div>
@@ -571,7 +617,7 @@ export default function ProfileViewPage() {
               {profile.dateOfBirth && (
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">🎂</span>
+                    <MdCake className="text-2xl text-purple-600" />
                     <div>
                       <p className="text-sm text-purple-600 font-medium">Date of Birth</p>
                       <p className="text-purple-800 font-semibold">{new Date(profile.dateOfBirth).toLocaleDateString()}</p>
@@ -582,7 +628,7 @@ export default function ProfileViewPage() {
               {profile.maritalStatus && (
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">💍</span>
+                    <MdFavorite className="text-2xl text-indigo-600" />
                     <div>
                       <p className="text-sm text-indigo-600 font-medium">Marital Status</p>
                       <p className="text-indigo-800 font-semibold capitalize">{profile.maritalStatus.replace('_', ' ')}</p>
@@ -593,7 +639,7 @@ export default function ProfileViewPage() {
               {profile.disability && (
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">♿</span>
+                    <MdBlock className="text-2xl text-red-500 rotate-45" />
                     <div>
                       <p className="text-sm text-gray-600 font-medium">Disability</p>
                       <p className="text-gray-800 font-semibold">{profile.disability}</p>
@@ -604,7 +650,7 @@ export default function ProfileViewPage() {
               {profile.countryOfOrigin && (
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">🌍</span>
+                    <MdPublic className="text-2xl text-green-600" />
                     <div>
                       <p className="text-sm text-green-600 font-medium">Country of Origin</p>
                       <p className="text-green-800 font-semibold">{profile.countryOfOrigin}</p>
@@ -613,9 +659,9 @@ export default function ProfileViewPage() {
                 </div>
               )}
               {profile.education && (
-                <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-3.5 rounded-xl border border-blue-200">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">🎓</span>
+                    <MdSchool className="text-2xl text-blue-600" />
                     <div>
                       <p className="text-sm text-blue-600 font-medium">Education</p>
                       <p className="text-blue-800 font-semibold">{profile.education}</p>
@@ -626,7 +672,7 @@ export default function ProfileViewPage() {
               {profile.occupation && (
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">💼</span>
+                    <MdWork className="text-2xl text-amber-600" />
                     <div>
                       <p className="text-sm text-amber-600 font-medium">Occupation</p>
                       <p className="text-amber-800 font-semibold">{profile.occupation}</p>
@@ -637,7 +683,7 @@ export default function ProfileViewPage() {
               {profile.languagesKnown && profile.languagesKnown.length > 0 && (
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">🗣️</span>
+                    <MdLanguage className="text-2xl text-teal-600" />
                     <div>
                       <p className="text-sm text-teal-600 font-medium">Languages Known</p>
                       <p className="text-teal-800 font-semibold">{profile.languagesKnown.join(', ')}</p>
@@ -648,7 +694,7 @@ export default function ProfileViewPage() {
               {profile.numberOfSiblings !== undefined && profile.numberOfSiblings !== null && (
                 <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">👨‍👩‍👧‍👦</span>
+                    <MdFamilyRestroom className="text-2xl text-orange-600" />
                     <div>
                       <p className="text-sm text-orange-600 font-medium">Number of Siblings</p>
                       <p className="text-orange-800 font-semibold">{profile.numberOfSiblings}</p>
@@ -661,38 +707,38 @@ export default function ProfileViewPage() {
 
           {/* Looking For Section */}
           {profile.lookingFor && (
-            <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-              <h3 className="font-bold text-blue-800 mb-4 text-xl flex items-center gap-2">
-                <span className="text-2xl">💖</span>
-                Looking For
+            <div className="bg-white rounded-2xl shadow-md p-5 mb-6">
+              <h3 className="font-bold text-blue-800 mb-3.5 text-lg flex items-center gap-2">
+                <MdFavorite className="text-2xl text-pink-600" />
+                <span>Looking For</span>
               </h3>
-              <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
-                <p className="text-gray-700 leading-relaxed text-lg">{profile.lookingFor}</p>
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                <p className="text-gray-700 leading-relaxed text-base">{profile.lookingFor}</p>
               </div>
             </div>
           )}
 
           {/* About Section */}
           {profile.about && (
-            <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-              <h3 className="font-bold text-blue-800 mb-4 text-xl flex items-center gap-2">
-                <span className="text-2xl">💭</span>
-                About Me
+            <div className="bg-white rounded-2xl shadow-md p-5 mb-6">
+              <h3 className="font-bold text-blue-800 mb-3.5 text-lg flex items-center gap-2">
+                <MdInfo className="text-2xl" />
+                <span>About Me</span>
               </h3>
-              <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
-                <p className="text-gray-700 leading-relaxed text-lg">{profile.about}</p>
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                <p className="text-gray-700 leading-relaxed text-base">{profile.about}</p>
               </div>
             </div>
           )}
 
           {/* Gallery Images */}
           {profile.galleryImages && profile.galleryImages.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-md p-6">
-              <h3 className="font-bold text-blue-800 mb-6 text-xl flex items-center gap-2">
-                <span className="text-2xl">📸</span>
-                Photo Gallery ({profile.galleryImages.length})
+            <div className="bg-white rounded-2xl shadow-md p-5">
+              <h3 className="font-bold text-blue-800 mb-5 text-lg flex items-center gap-2">
+                <MdPhotoCamera className="text-2xl" />
+                <span>Photo Gallery ({profile.galleryImages.length})</span>
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {profile.galleryImages.map((src, idx) => {
                   const isVideo = /\.(mp4|webm|mov)$/i.test(src)
                   const url = transformUrl(src)
@@ -702,7 +748,7 @@ export default function ProfileViewPage() {
                         <video
                           src={url}
                           controls
-                          className="w-full h-64 object-cover bg-black"
+                          className="w-full h-56 object-cover bg-black"
                         />
                       ) : (
                         <img
@@ -710,7 +756,7 @@ export default function ProfileViewPage() {
                           onError={handleImgError}
                           onClick={() => openLightbox(url)}
                           alt={`gallery-${idx}`}
-                          className="w-full h-64 object-cover transition-transform duration-300 cursor-zoom-in bg-white"
+                          className="w-full h-56 object-cover transition-transform duration-300 cursor-zoom-in bg-white"
                         />
                       )}
                       <div className="absolute inset-0 pointer-events-none"></div>
@@ -725,7 +771,7 @@ export default function ProfileViewPage() {
         <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
           <div className="mb-6">
             <div className="w-24 h-24 bg-gradient-to-r from-pink-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-4xl">🔒</span>
+              <MdLock className="text-4xl text-blue-700" />
             </div>
             <h3 className="text-2xl font-bold text-blue-800 mb-2">Profile is Private</h3>
             <p className="text-gray-600 mb-6">This user's profile details are only visible to connected friends.</p>

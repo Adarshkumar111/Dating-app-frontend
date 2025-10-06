@@ -185,6 +185,24 @@ export default function Navbar(){
       {isMobileMenuOpen && (
         <div className="md:hidden absolute left-2 right-2 md:left-4 md:right-4 top-[calc(100%+0.25rem)] bg-blue-900 shadow-2xl animate-slide-down z-40 rounded-2xl overflow-hidden">
           <div className="px-4 py-4 space-y-2">
+              {/* Discover (mobile) */}
+              {!user.isAdmin && (
+                <button 
+                  onClick={() => { setIsMobileMenuOpen(false); nav('/dashboard') }}
+                  className="block w-full text-left py-2 px-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all duration-300 font-medium"
+                >
+                  Discover
+                </button>
+              )}
+              {/* Premium (mobile) */}
+              {!user.isAdmin && (
+                <button 
+                  onClick={() => { setIsMobileMenuOpen(false); nav('/premium') }}
+                  className="block w-full text-left py-2 px-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all duration-300 font-medium"
+                >
+                  Premium
+                </button>
+              )}
               <button 
                 onClick={() => { setIsMobileMenuOpen(false); nav(`/profile/${user.id}`) }}
                 className="block w-full text-left py-2 px-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all duration-300 font-medium"

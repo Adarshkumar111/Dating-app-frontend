@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 import { MdSettings } from 'react-icons/md';
 import { getSettings, updateSettings, getAppSettings, updateAppSettings } from '../../services/adminService.js';
 
@@ -7,7 +8,7 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState({
     freeUserRequestLimit: 2,
-    premiumUserRequestLimit: 20,
+    notifyFollowRequestEmail: false,
   });
   const [appSettings, setAppSettings] = useState({ enabledFilters: {}, profileDisplayFields: {} });
 
@@ -15,10 +16,12 @@ export default function AdminSettings() {
     try {
       setLoading(true);
       const [s, a] = await Promise.all([getSettings(), getAppSettings()]);
-      setSettings(s || settings);
+      setSettings(prev => ({ ...(prev || {}), ...(s || {}) }));
       setAppSettings(a || { enabledFilters: {}, profileDisplayFields: {} });
     } catch (e) {
-      setInfo(e.response?.data?.message || e.message);
+      const msg = e.response?.data?.message || e.message;
+      setInfo(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -30,8 +33,12 @@ export default function AdminSettings() {
     try {
       await updateSettings(settings);
       setInfo('Settings updated');
+      toast.success('Settings updated');
+      await loadAll();
     } catch (e) {
-      setInfo('Failed to update settings: ' + (e.response?.data?.message || e.message));
+      const msg = 'Failed to update settings: ' + (e.response?.data?.message || e.message);
+      setInfo(msg);
+      toast.error(msg);
     }
   };
 
@@ -39,8 +46,11 @@ export default function AdminSettings() {
     try {
       await updateAppSettings({ enabledFilters: appSettings.enabledFilters || {} });
       setInfo('Filter controls saved');
+      toast.success('Filter controls saved');
     } catch (e) {
-      setInfo('Failed to save filter controls: ' + (e.response?.data?.message || e.message));
+      const msg = 'Failed to save filter controls: ' + (e.response?.data?.message || e.message);
+      setInfo(msg);
+      toast.error(msg);
     }
   };
 
@@ -48,23 +58,24 @@ export default function AdminSettings() {
     try {
       await updateAppSettings({ profileDisplayFields: appSettings.profileDisplayFields || {} });
       setInfo('Profile display settings saved');
+      toast.success('Profile display settings saved');
     } catch (e) {
-      setInfo('Failed to save profile display settings: ' + (e.response?.data?.message || e.message));
+      const msg = 'Failed to save profile display settings: ' + (e.response?.data?.message || e.message);
+      setInfo(msg);
+      toast.error(msg);
     }
   };
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
       <h3 className="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
-        <MdSettings /> Request Limit Settings
+        <MdSettings /> Request & Notification Settings
       </h3>
 
-      {info && (
-        <div className="mb-4 p-3 bg-blue-50 text-blue-800 rounded-lg border border-blue-200">{info}</div>
-      )}
+      {/* Inline info banner removed; toasts will show feedback */}
 
       {/* Request Limits */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Free User Daily Request Limit
@@ -79,19 +90,19 @@ export default function AdminSettings() {
           />
           <p className="text-sm text-gray-500 mt-1">Number of follow requests free users can send per day</p>
         </div>
-        <div>
+        <div className="md:col-span-2">
           <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Premium User Daily Request Limit
+            Email Notifications for Follow Requests
           </label>
-          <input
-            type="number"
-            min="1"
-            max="200"
-            value={settings.premiumUserRequestLimit}
-            onChange={(e) => setSettings({ ...settings, premiumUserRequestLimit: parseInt(e.target.value || '0', 10) })}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-          <p className="text-sm text-gray-500 mt-1">Number of follow requests premium users can send per day</p>
+          <label className="inline-flex items-center gap-3 p-3 border rounded-lg cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={!!settings.notifyFollowRequestEmail}
+              onChange={(e) => setSettings({ ...settings, notifyFollowRequestEmail: e.target.checked })}
+            />
+            <span className="text-gray-700">Send email to target user when someone sends a follow request (requires SMTP configured)</span>
+          </label>
+          <p className="text-sm text-gray-500 mt-1">Admin can toggle whether users receive email notifications for new follow requests.</p>
         </div>
       </div>
 

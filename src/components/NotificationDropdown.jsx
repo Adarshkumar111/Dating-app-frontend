@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { getNotifications } from '../services/notificationService.js'
 import { respondToRequest } from '../services/requestService.js'
+import { getPendingProfileEdits, approveProfileEditApi, rejectProfileEditApi } from '../services/adminService.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { io } from 'socket.io-client'
 
@@ -12,18 +13,57 @@ export default function NotificationDropdown({ onUpdate }) {
   const socketRef = useRef(null)
   const { user } = useAuth()
   const [unreadCount, setUnreadCount] = useState(0)
+  const getStorageKey = () => `admin:dismissed:notifs:${user?.id || 'anon'}`
 
   const dismissNotif = (id) => {
     setNotifications((prev) => prev.filter(n => n._id !== id))
     setUnreadCount((c) => Math.max(0, c - 1))
+    try {
+      if (user?.isAdmin) {
+        const raw = localStorage.getItem(getStorageKey())
+        const setIds = new Set(raw ? JSON.parse(raw) : [])
+        setIds.add(id)
+        localStorage.setItem(getStorageKey(), JSON.stringify(Array.from(setIds)))
+      }
+    } catch {}
   }
 
   const loadNotifications = async () => {
     try {
-      const data = await getNotifications()
-      setNotifications(data)
-      // If dropdown is closed, reflect new count on the badge
-      if (!isOpen) setUnreadCount(Array.isArray(data) ? data.length : 0)
+      if (user?.isAdmin) {
+        // Admin: merge pending requests + pending profile edits
+        const [requests, edits] = await Promise.all([
+          getNotifications(),
+          getPendingProfileEdits()
+        ])
+        const normalizedEdits = (edits || []).map(e => ({
+          _id: e._id,
+          type: 'admin_edit',
+          from: { name: e.name, profilePhoto: e.profilePhoto },
+          to: { name: e.name },
+          updatedAt: e.updatedAt
+        }))
+        const normalizedReqs = (requests || []).map(r => ({
+          _id: r._id,
+          type: r.type,
+          from: r.from,
+          to: r.to,
+          updatedAt: r.createdAt
+        }))
+        let merged = [...normalizedEdits, ...normalizedReqs].sort((a,b)=> new Date(b.updatedAt) - new Date(a.updatedAt))
+        // Filter out admin-dismissed non-edit items so they don't reappear
+        try {
+          const raw = localStorage.getItem(getStorageKey())
+          const dismissed = new Set(raw ? JSON.parse(raw) : [])
+          merged = merged.filter(n => !(n.type !== 'admin_edit' && dismissed.has(n._id)))
+        } catch {}
+        setNotifications(merged)
+        if (!isOpen) setUnreadCount(merged.length)
+      } else {
+        const data = await getNotifications()
+        setNotifications(data)
+        if (!isOpen) setUnreadCount(Array.isArray(data) ? data.length : 0)
+      }
     } catch (e) {
       console.error('Failed to load notifications:', e)
     }
@@ -43,9 +83,14 @@ export default function NotificationDropdown({ onUpdate }) {
         // Update list when a photo request lifecycle event occurs
         if (payload.kind.startsWith('photo:')) {
           loadNotifications()
-          if (onUpdate) onUpdate()
         }
       })
+      // Admin-specific: pending profile edit updates
+      if (user?.isAdmin) {
+        socketRef.current.on('admin:pendingEdit', () => {
+          loadNotifications()
+        })
+      }
     }
 
     return () => {
@@ -69,9 +114,23 @@ export default function NotificationDropdown({ onUpdate }) {
     try {
       await respondToRequest({ requestId, action })
       await loadNotifications()
-      if (onUpdate) onUpdate()
     } catch (e) {
       console.error('Failed to respond:', e)
+    }
+    setLoading(false)
+  }
+
+  const handleAdminEdit = async (userId, action) => {
+    setLoading(true)
+    try {
+      if (action === 'accept') {
+        await approveProfileEditApi(userId)
+      } else {
+        await rejectProfileEditApi(userId, '')
+      }
+      await loadNotifications()
+    } catch (e) {
+      console.error('Failed to process profile edit:', e)
     }
     setLoading(false)
   }
@@ -117,10 +176,10 @@ export default function NotificationDropdown({ onUpdate }) {
               {notifications.map((notif) => (
                 <div
                   key={notif._id}
-                  className="p-4 hover:bg-gray-50 cursor-pointer"
+                  className={`p-4 hover:bg-gray-50 ${user?.isAdmin && notif.type !== 'admin_edit' ? 'cursor-pointer' : ''}`}
                   onClick={() => {
-                    // Admin: tap to dismiss read-only entries
-                    if (user?.isAdmin) dismissNotif(notif._id)
+                    // Admin: tap to dismiss read-only entries (not for admin_edit)
+                    if (user?.isAdmin && notif.type !== 'admin_edit') dismissNotif(notif._id)
                   }}
                 >
                   <div className="flex items-start gap-3">
@@ -145,11 +204,33 @@ export default function NotificationDropdown({ onUpdate }) {
                           <p className="font-semibold text-gray-800">
                             {notif.from?.name || 'Unknown'}
                           </p>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {notif.type === 'photo'
-                              ? `requested access to images of ${notif.to?.name || 'Unknown'}`
-                              : `sent a request to ${notif.to?.name || 'Unknown'}`}
-                          </p>
+                          {notif.type === 'admin_edit' ? (
+                            <>
+                              <p className="text-sm text-gray-600 mt-1">submitted profile edits</p>
+                              <div className="flex gap-2 mt-3">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleAdminEdit(notif._id, 'accept') }}
+                                  disabled={loading}
+                                  className="flex-1 bg-green-500 text-white text-sm py-1.5 rounded-lg hover:bg-green-600 transition disabled:opacity-50"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleAdminEdit(notif._id, 'reject') }}
+                                  disabled={loading}
+                                  className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {notif.type === 'photo'
+                                ? `requested access to images of ${notif.to?.name || 'Unknown'}`
+                                : `sent a request to ${notif.to?.name || 'Unknown'}`}
+                            </p>
+                          )}
                         </>
                       ) : (
                         <>

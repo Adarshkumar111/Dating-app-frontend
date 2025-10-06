@@ -4,6 +4,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import './styles/compact.css'
 import { useAuth } from './context/AuthContext.jsx'
 import Navbar from './components/Navbar.jsx'
+import MobileBottomBar from './components/MobileBottomBar.jsx'
 import MessageNotificationBanner from './components/MessageNotificationBanner.jsx'
 import SignupPage from './pages/SignupPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
@@ -47,6 +48,9 @@ export default function App() {
       {token && <Navbar />}
       {token && <div className="h-16 md:h-20" />}
       {token && <MessageNotificationBanner />}
+      {token && <MobileBottomBar />}
+      {/* Bottom spacer for mobile bottom bar */}
+      {token && <div className="h-14 md:h-0" />}
       <ToastContainer position="top-center" autoClose={2500} hideProgressBar closeOnClick pauseOnHover={false} theme="colored" />
       <Routes>
         <Route path="/" element={<Navigate to={getDefaultRoute()} />} />

@@ -96,8 +96,12 @@ export default function DashboardPage() {
 
   const handleFollow = async (id) => {
     try {
-      await sendRequest({ toUserId: id, type: 'follow' });
-      toast.success('Request sent successfully');
+      const res = await sendRequest({ toUserId: id, type: 'follow' });
+      if (typeof res?.remaining === 'number' && typeof res?.limit === 'number') {
+        toast.success(`Request sent. You have ${res.remaining} free request${res.remaining === 1 ? '' : 's'} remaining today.`);
+      } else {
+        toast.success('Request sent successfully');
+      }
       loadUsers();
     } catch (e) {
       if (e.response?.status === 429 && e.response?.data?.needsPremium) {
@@ -159,74 +163,41 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Header (only on dashboard tab) */}
-        {tab === 'dashboard' && (
-          <div className="text-center mb-4">
-            <h1 className="text-3xl font-bold text-blue-800 mb-2">Welcome to M Nikah</h1>
-            <p className="text-gray-600">dashboard your perfect match</p>
-          </div>
-        )}
+        {/* Header hidden as per new design (bottom bar handles nav) */}
 
-        {/* Tabs */}
-        <div className="flex justify-center gap-3 mb-8 relative">
-          <button
-            onClick={() => setTab('dashboard')}
-            className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-              tab === 'dashboard' 
-                ? 'bg-premium-gradient text-white shadow-xl' 
-                : 'bg-white text-blue-800 hover:bg-blue-50 shadow-lg border border-blue-200'
-            }`}
-          >
-            🔍 dashboard
-          </button>
-          <button
-            onClick={() => setTab('friends')}
-            className={`relative px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-              tab === 'friends' 
-                ? 'bg-premium-gradient text-white shadow-xl' 
-                : 'bg-white text-blue-800 hover:bg-blue-50 shadow-lg border border-blue-200'
-            }`}
-            aria-label="Messages"
-          >
-            💬 Messages
-            {unreadTotal > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">
-                {unreadTotal > 5 ? '5+' : unreadTotal}
-              </span>
-            )}
-          </button>
-          {/* Filters trigger moved here */}
+        {/* Tabs UI removed; bottom bar controls navigation */}
+        <div className="flex justify-center gap-3 mb-4 relative">
           {tab === 'dashboard' && (
             <div className="relative">
               <button
                 onClick={() => setShowFilters((s) => !s)}
-                className="px-4 py-3 rounded-xl font-semibold bg-white text-blue-800 shadow-lg border border-blue-200 hover:bg-blue-50"
+                className="px-3 py-2 rounded-xl font-semibold bg-white text-blue-800 shadow border border-blue-200 hover:bg-blue-50 text-sm"
                 aria-label="Filters"
               >
                 ⚙️ Filters
               </button>
               {showFilters && (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowFilters(false)} />
-                  <div className="absolute right-0 mt-2 w-[min(88vw,640px)] bg-white border border-blue-200 rounded-xl shadow-md p-3 z-20">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="fixed inset-0 z-40" onClick={() => setShowFilters(false)} />
+                  <div className="absolute right-0 mt-2 w-[min(90vw,520px)] bg-white border border-blue-200 rounded-xl shadow-md p-2 z-50">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       {enabledFilters.age && (
                         <div className="flex items-center gap-2">
-                          <input type="number" placeholder="Age min" value={filters.ageMin} onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" />
+                          <input type="number" placeholder="Age min" value={filters.ageMin} onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
                           <span className="text-gray-500">-</span>
-                          <input type="number" placeholder="Age max" value={filters.ageMax} onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" />
+                          <input type="number" placeholder="Age max" value={filters.ageMax} onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
                         </div>
                       )}
                       {enabledFilters.education && (
-                        <input type="text" placeholder="Education" value={filters.education} onChange={(e) => setFilters({ ...filters, education: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" />
+                        <input type="text" placeholder="Education" value={filters.education} onChange={(e) => setFilters({ ...filters, education: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
                       )}
                       {enabledFilters.occupation && (
-                        <input type="text" placeholder="Occupation" value={filters.occupation} onChange={(e) => setFilters({ ...filters, occupation: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" />
+                        <input type="text" placeholder="Occupation" value={filters.occupation} onChange={(e) => setFilters({ ...filters, occupation: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
                       )}
                     </div>
-                    <div className="mt-3 flex gap-2 justify-end">
-                      <button onClick={() => { setShowFilters(false); loadUsers(); }} className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">Apply</button>
-                      <button onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', occupation: '', name: '' }); setShowFilters(false); setLoading(true); loadUsers(); }} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Reset</button>
+                    <div className="mt-2 flex gap-2 justify-end">
+                      <button onClick={() => { setShowFilters(false); loadUsers(); }} className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">Apply</button>
+                      <button onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', occupation: '', name: '' }); setShowFilters(false); setLoading(true); loadUsers(); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Reset</button>
                     </div>
                   </div>
                 </>

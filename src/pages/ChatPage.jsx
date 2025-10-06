@@ -231,14 +231,40 @@ export default function ChatPage() {
     }
 
     const uploadAndSend = async (file) => {
+        if (!chatData) return
         setUploading(true)
         setShowMediaMenu(false)
+
+        // Create optimistic local message so sender sees it immediately
+        const clientId = 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2,8)
+        pendingClientIdsRef.current.add(clientId)
+        const objectUrl = URL.createObjectURL(file)
+        const mType = file.type?.startsWith('video/') ? 'video' : file.type?.startsWith('audio/') ? 'voice' : 'image'
+        const local = {
+            _id: 'local-' + Date.now(),
+            sender: currentUser.id,
+            fromSelf: true,
+            text: '',
+            messageType: mType,
+            mediaUrl: objectUrl,
+            mediaDuration: null,
+            sentAt: new Date().toISOString(),
+            reactions: [],
+            clientId
+        }
+        setMessages(prev => [...prev, local])
+
         try {
-            await uploadMedia(chatData.chatId, file)
+            await uploadMedia(chatData.chatId, file, { clientId })
         } catch (e) {
             alert(e.response?.data?.message || 'Upload failed')
+            // On failure, remove optimistic bubble
+            setMessages(prev => prev.filter(x => x.clientId !== clientId && x._id !== local._id))
+        } finally {
+            setUploading(false)
+            // Revoke object URL after a delay to avoid breaking preview before server echo replaces it
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 5000)
         }
-        setUploading(false)
     }
 
     const openCamera = async (mode) => {

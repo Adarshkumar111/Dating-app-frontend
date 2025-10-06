@@ -4,9 +4,11 @@ export const getChatWithUser = async (userId) => (await api.get(`/chat/with/${us
 export const sendMessage = async (chatId, data) => (await api.post(`/chat/${chatId}/send`, data)).data;
 export const deleteMessage = async (chatId, messageId, deleteType) => (await api.post(`/chat/${chatId}/delete`, { messageId, deleteType })).data;
 export const addReaction = async (chatId, messageId, emoji) => (await api.post(`/chat/${chatId}/react`, { messageId, emoji })).data;
-export const uploadMedia = async (chatId, file) => {
+export const uploadMedia = async (chatId, file, options = {}) => {
   const fd = new FormData();
   fd.append('media', file);
+  if (options.clientId) fd.append('clientId', options.clientId);
+  if (typeof options.duration !== 'undefined') fd.append('duration', String(options.duration));
   return (await api.post(`/chat/${chatId}/upload`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
 };
 export const markAsSeen = async (chatId) => (await api.post(`/chat/${chatId}/seen`)).data;
