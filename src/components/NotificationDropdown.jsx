@@ -1,17 +1,48 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { getNotifications } from '../services/notificationService.js'
 import { respondToRequest } from '../services/requestService.js'
+import { useAuth } from '../context/AuthContext.jsx'
+import { getPendingProfileEdits, approveProfileEditApi, rejectProfileEditApi } from '../services/adminService.js'
+import { io } from 'socket.io-client'
 
 export default function NotificationDropdown({ onUpdate }) {
   const [notifications, setNotifications] = useState([])
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const dropdownRef = useRef(null)
+  const socketRef = useRef(null)
+  const { user } = useAuth()
 
   const loadNotifications = async () => {
     try {
-      const data = await getNotifications()
-      setNotifications(data)
+      if (user?.isAdmin) {
+        // Admin: merge pending requests + pending profile edits
+        const [requests, edits] = await Promise.all([
+          getNotifications(),
+          getPendingProfileEdits()
+        ])
+        const normalizedEdits = (edits || []).map(e => ({
+          _id: e._id,
+          type: 'admin_edit',
+          from: { name: e.name, profilePhoto: e.profilePhoto },
+          updatedAt: e.updatedAt,
+          changedFields: e.changedFields || []
+        }))
+        const normalizedReqs = (requests || []).map(r => ({
+          _id: r._id,
+          type: r.type, // 'photo' | 'follow' | 'chat' | 'both'
+          from: r.from, // populated name/profilePhoto
+          to: r.to,     // populated name/profilePhoto
+          updatedAt: r.createdAt,
+        }))
+        // Sort by updatedAt desc
+        const merged = [...normalizedEdits, ...normalizedReqs].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+        setNotifications(merged)
+      } else {
+        // Regular user: pending requests sent to me
+        const data = await getNotifications()
+        setNotifications(data)
+      }
     } catch (e) {
       console.error('Failed to load notifications:', e)
     }
@@ -19,9 +50,34 @@ export default function NotificationDropdown({ onUpdate }) {
 
   useEffect(() => {
     loadNotifications()
-    // Poll for new notifications every 30 seconds
+    // Poll as fallback
     const interval = setInterval(loadNotifications, 30000)
-    return () => clearInterval(interval)
+
+    // Real-time updates via socket
+    if (user?.id) {
+      socketRef.current = io('http://localhost:5000')
+      const channel = `user:${user.id}`
+      socketRef.current.on(channel, (payload) => {
+        if (!payload || !payload.kind) return
+        // Update list when a photo request lifecycle event occurs
+        if (payload.kind.startsWith('photo:')) {
+          loadNotifications()
+          if (onUpdate) onUpdate()
+        }
+      })
+      // Admin-specific real-time for profile edits
+      if (user.isAdmin) {
+        socketRef.current.on('admin:pendingEdit', () => {
+          loadNotifications()
+          if (onUpdate) onUpdate()
+        })
+      }
+    }
+
+    return () => {
+      clearInterval(interval)
+      if (socketRef.current) socketRef.current.disconnect()
+    }
   }, [])
 
   useEffect(() => {
@@ -34,10 +90,24 @@ export default function NotificationDropdown({ onUpdate }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleRespond = async (requestId, action) => {
+  const handleRespond = async (requestId, action, type) => {
     setLoading(true)
     try {
-      await respondToRequest({ requestId, action })
+      if (user?.isAdmin) {
+        if (type === 'admin_edit') {
+          // Admin action on profile edit
+          if (action === 'accept') {
+            await approveProfileEditApi(requestId)
+          } else {
+            await rejectProfileEditApi(requestId, '')
+          }
+        } else {
+          // Admin responding to a pending request document
+          await respondToRequest({ requestId, action })
+        }
+      } else {
+        await respondToRequest({ requestId, action })
+      }
       await loadNotifications()
       if (onUpdate) onUpdate()
     } catch (e) {
@@ -95,18 +165,29 @@ export default function NotificationDropdown({ onUpdate }) {
                     
                     <div className="flex-1">
                       <p className="font-semibold text-gray-800">{notif.from?.name || 'Unknown'}</p>
-                      <p className="text-sm text-gray-600 mt-1">{notif.from?.about || 'Sent you a follow request'}</p>
+                      {user?.isAdmin && notif.type === 'admin_edit' ? (
+                        <p className="text-sm text-gray-600 mt-1">submitted profile edits {notif.changedFields?.length ? `(${notif.changedFields.map(c=>c.field).join(', ')})` : ''}</p>
+                      ) : user?.isAdmin ? (
+                        <p className="text-sm text-gray-600 mt-1">
+                          {notif.type === 'photo' ? 'requested access to images 📸' : 'sent a connection request'}
+                          {notif.to?.name ? ` → ${notif.to.name}` : ''}
+                        </p>
+                      ) : notif.type === 'photo' ? (
+                        <p className="text-sm text-gray-600 mt-1">requested access to your photos 📸</p>
+                      ) : (
+                        <p className="text-sm text-gray-600 mt-1">sent you a follow/chat request</p>
+                      )}
                       
                       <div className="flex gap-2 mt-3">
                         <button
-                          onClick={() => handleRespond(notif._id, 'accept')}
+                          onClick={() => handleRespond(notif._id, 'accept', notif.type)}
                           disabled={loading}
                           className="flex-1 bg-green-500 text-white text-sm py-1.5 rounded-lg hover:bg-green-600 transition disabled:opacity-50"
                         >
                           Accept
                         </button>
                         <button
-                          onClick={() => handleRespond(notif._id, 'reject')}
+                          onClick={() => handleRespond(notif._id, 'reject', notif.type)}
                           disabled={loading}
                           className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
                         >

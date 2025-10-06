@@ -28,3 +28,8 @@ export const getPaymentStats = async () => (await api.get('/admin/payments/stats
 // App Settings (comprehensive)
 export const getAppSettings = async () => (await api.get('/admin/app-settings')).data
 export const updateAppSettings = async (settings) => (await api.put('/admin/app-settings', settings)).data
+
+// Profile Edit Approval
+export const getPendingProfileEdits = async () => (await api.get('/admin/pending-edits')).data
+export const approveProfileEditApi = async (userId) => (await api.post('/admin/approve-edit', { userId })).data
+export const rejectProfileEditApi = async (userId, reason) => (await api.post('/admin/reject-edit', { userId, reason })).data

@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getProfile } from '../services/userService.js'
 import { sendRequest, unfollow } from '../services/requestService.js'
 import { getUserChatHistory, adminBlockUser, adminUnblockUser } from '../services/adminService.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { MdMoreVert, MdBlock, MdChat, MdPerson } from 'react-icons/md'
+import { io } from 'socket.io-client'
 
 export default function ProfileViewPage() {
   const { id } = useParams()
@@ -17,6 +18,7 @@ export default function ProfileViewPage() {
   const [showAdminMenu, setShowAdminMenu] = useState(false)
   const [loadingChats, setLoadingChats] = useState(false)
   const [expandedChat, setExpandedChat] = useState(null)
+  const socketRef = useRef(null)
 
   const loadProfile = async () => {
     try {
@@ -82,6 +84,31 @@ export default function ProfileViewPage() {
 
   useEffect(() => {
     loadProfile()
+    // Setup real-time updates for photo request state
+    if (currentUser?.id) {
+      socketRef.current = io('http://localhost:5000')
+      const channel = `user:${currentUser.id}`
+      socketRef.current.on(channel, (payload) => {
+        if (!payload || !payload.kind) return
+        // Only react to events related to this profile view
+        const involvesThisPair = (payload.from === String(currentUser.id) && payload.to === String(id)) ||
+                                 (payload.from === String(id) && payload.to === String(currentUser.id))
+        if (!involvesThisPair) return
+        if (payload.kind === 'photo:approved') {
+          setInfo('Your photo request was approved')
+          loadProfile()
+        } else if (payload.kind === 'photo:rejected') {
+          setInfo('Your photo request was rejected')
+          loadProfile()
+        } else if (payload.kind === 'photo:requested') {
+          // If the other user requested my photos and I am viewing their profile, refresh for status
+          loadProfile()
+        }
+      })
+    }
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect()
+    }
   }, [id])
 
   const handleFollow = async () => {
@@ -101,6 +128,16 @@ export default function ProfileViewPage() {
       loadProfile()
     } catch (e) {
       setInfo(e.response?.data?.message || 'Error')
+    }
+  }
+
+  const handleRequestPhotos = async () => {
+    try {
+      await sendRequest({ toUserId: id, type: 'photo' })
+      setInfo('Photo access request sent!')
+      loadProfile()
+    } catch (e) {
+      setInfo(e.response?.data?.message || 'Failed to send photo request')
     }
   }
 
@@ -264,6 +301,30 @@ export default function ProfileViewPage() {
                         <span>💬</span>
                         <span>Start Chat</span>
                       </button>
+                      {/* Request Photos button: hidden if already accessible */}
+                      {!profile.isPhotoAccessible && (
+                        profile.photoRequestStatus === 'pending' ? (
+                          <button
+                            disabled
+                            className="px-6 py-3 bg-gray-100 text-gray-500 rounded-lg cursor-not-allowed"
+                          >
+                            Pending Photo Request
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleRequestPhotos}
+                            disabled={profile.isBlockedByMe || profile.isBlockedByThem}
+                            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2 ${
+                              (profile.isBlockedByMe || profile.isBlockedByThem)
+                                ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                                : 'bg-purple-600 text-white hover:bg-purple-700'
+                            }`}
+                          >
+                            <span>📸</span>
+                            <span>Request Photos</span>
+                          </button>
+                        )
+                      )}
                       <button
                         onClick={handleUnfollow}
                         className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-300 font-semibold"
@@ -523,6 +584,32 @@ export default function ProfileViewPage() {
                 <li>• View complete profile and photos</li>
                 <li>• Start conversations</li>
               </ul>
+              {/* Show Request Photos button for locked photos even when details hidden */}
+              {!isOwnProfile && !isAdmin && !profile.isPhotoAccessible && (
+                <div className="mt-6">
+                  {profile.photoRequestStatus === 'pending' ? (
+                    <button
+                      disabled
+                      className="px-6 py-3 bg-gray-100 text-gray-500 rounded-lg cursor-not-allowed"
+                    >
+                      Pending Photo Request
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleRequestPhotos}
+                      disabled={profile.isBlockedByMe || profile.isBlockedByThem}
+                      className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2 ${
+                        (profile.isBlockedByMe || profile.isBlockedByThem)
+                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                          : 'bg-purple-600 text-white hover:bg-purple-700'
+                      }`}
+                    >
+                      <span>📸</span>
+                      <span>Request Photos</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
