@@ -19,6 +19,39 @@ export default function ProfileViewPage() {
   const [loadingChats, setLoadingChats] = useState(false)
   const [expandedChat, setExpandedChat] = useState(null)
   const socketRef = useRef(null)
+  // Lightbox for zooming images
+  const [lightbox, setLightbox] = useState({ open: false, src: '' })
+  const [zoom, setZoom] = useState({ scale: 1, x: 0, y: 0, dragging: false, originX: 0, originY: 0 })
+
+  const openLightbox = (src) => {
+    setLightbox({ open: true, src })
+    setZoom({ scale: 1, x: 0, y: 0, dragging: false, originX: 0, originY: 0 })
+  }
+  const closeLightbox = () => {
+    setLightbox({ open: false, src: '' })
+    setZoom({ scale: 1, x: 0, y: 0, dragging: false, originX: 0, originY: 0 })
+  }
+
+  // Ensure ImageKit images render reliably by applying safe transformations
+  const transformUrl = (url) => {
+    if (!url) return url
+    try {
+      const hasQuery = url.includes('?')
+      if (url.includes('ik.imagekit.io')) {
+        // Fit within bounds, auto format, auto focus (avoid black boxes)
+        return `${url}${hasQuery ? '&' : '?'}tr=w-1000,h-1000,f-auto,fo-auto`
+      }
+      return url
+    } catch {
+      return url
+    }
+  }
+
+  const handleImgError = (e) => {
+    e.currentTarget.onerror = null
+    e.currentTarget.src = 'https://via.placeholder.com/800x800.png?text=Image+Unavailable'
+    e.currentTarget.classList.add('bg-gray-100')
+  }
 
   const loadProfile = async () => {
     try {
@@ -111,6 +144,15 @@ export default function ProfileViewPage() {
     }
   }, [id])
 
+  // Close lightbox on Escape
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') setLightbox({ open: false, src: '' })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const handleFollow = async () => {
     try {
       await sendRequest({ toUserId: id, type: 'follow' })
@@ -163,10 +205,10 @@ export default function ProfileViewPage() {
   const isAdmin = currentUser?.isAdmin
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-blue-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {isAdmin && !isOwnProfile && (
-          <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-amber-50 text-blue-800 rounded-xl border border-blue-200 shadow-lg flex items-center justify-between animate-fade-in">
+          <div className="mb-6 p-4 bg-white text-blue-800 rounded-xl border border-blue-200 shadow-md flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                 <span className="text-lg text-white">🛡️</span>
@@ -212,15 +254,15 @@ export default function ProfileViewPage() {
         </div>
       )}
         {info && (
-          <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-200 shadow-lg animate-fade-in">
+          <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-200 shadow-md">
             {info}
           </div>
         )}
         
         {/* Profile Header Card */}
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden mb-8 transform hover:scale-105 transition-all duration-300">
+        <div className="bg-white rounded-3xl shadow-lg overflow-hidden mb-8">
           {/* Cover Background */}
-          <div className="h-32 bg-premium-gradient relative">
+          <div className="h-32 bg-blue-500 relative">
             <div className="absolute inset-0 bg-black bg-opacity-20"></div>
           </div>
           
@@ -230,9 +272,11 @@ export default function ProfileViewPage() {
             <div className="flex justify-center -mt-16 mb-6">
               {profile.profilePhoto ? (
                 <img
-                  src={profile.profilePhoto}
+                  src={transformUrl(profile.profilePhoto)}
+                  onError={handleImgError}
+                  onClick={() => openLightbox(transformUrl(profile.profilePhoto))}
                   alt="profile"
-                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-2xl"
+                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-2xl cursor-zoom-in"
                 />
               ) : (
                 <div className="w-32 h-32 rounded-full bg-premium-gradient flex items-center justify-center border-4 border-white shadow-2xl">
@@ -259,11 +303,7 @@ export default function ProfileViewPage() {
                   </span>
                 )}
                 {profile.gender && (
-                  <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
-                    profile.gender === 'male' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-pink-100 text-pink-800'
-                  }`}>
+                  <span className="px-4 py-2 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
                     {profile.gender === 'male' ? '👨 Male' : '👩 Female'}
                   </span>
                 )}
@@ -287,7 +327,7 @@ export default function ProfileViewPage() {
                   {!profile.isConnected ? (
                     <button
                       onClick={handleFollow}
-                      className="btn-accent flex items-center gap-2"
+                      className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2"
                     >
                       <span>💝</span>
                       <span>Send Follow Request</span>
@@ -296,7 +336,7 @@ export default function ProfileViewPage() {
                     <>
                       <button
                         onClick={() => nav(`/chat/${id}`)}
-                        className="btn-primary flex items-center gap-2"
+                        className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2"
                       >
                         <span>💬</span>
                         <span>Start Chat</span>
@@ -314,10 +354,10 @@ export default function ProfileViewPage() {
                           <button
                             onClick={handleRequestPhotos}
                             disabled={profile.isBlockedByMe || profile.isBlockedByThem}
-                            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2 ${
+                            className={`px-6 py-3 rounded-lg font-semibold transition flex items-center gap-2 ${
                               (profile.isBlockedByMe || profile.isBlockedByThem)
                                 ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                                : 'bg-purple-600 text-white hover:bg-purple-700'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
                             }`}
                           >
                             <span>📸</span>
@@ -354,7 +394,7 @@ export default function ProfileViewPage() {
         <>
           {/* Admin-only fields */}
           {isAdmin && !isOwnProfile && (
-            <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-amber-50 rounded-2xl border border-blue-200 shadow-lg">
+            <div className="mb-8 p-6 bg-white rounded-2xl border border-blue-200 shadow-md">
               <h3 className="font-bold text-blue-800 mb-4 text-xl flex items-center gap-2">
                 <span className="text-2xl">📋</span>
                 Admin Information
@@ -505,7 +545,73 @@ export default function ProfileViewPage() {
               <span className="text-2xl">👤</span>
               Personal Details
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {profile.fatherName && (
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">👨</span>
+                    <div>
+                      <p className="text-sm text-blue-600 font-medium">Father's Name</p>
+                      <p className="text-blue-800 font-semibold">{profile.fatherName}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {profile.motherName && (
+                <div className="bg-gradient-to-r from-pink-50 to-pink-100 p-4 rounded-xl border border-pink-200">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">👩</span>
+                    <div>
+                      <p className="text-sm text-pink-600 font-medium">Mother's Name</p>
+                      <p className="text-pink-800 font-semibold">{profile.motherName}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {profile.dateOfBirth && (
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🎂</span>
+                    <div>
+                      <p className="text-sm text-purple-600 font-medium">Date of Birth</p>
+                      <p className="text-purple-800 font-semibold">{new Date(profile.dateOfBirth).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {profile.maritalStatus && (
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">💍</span>
+                    <div>
+                      <p className="text-sm text-indigo-600 font-medium">Marital Status</p>
+                      <p className="text-indigo-800 font-semibold capitalize">{profile.maritalStatus.replace('_', ' ')}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {profile.disability && (
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">♿</span>
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Disability</p>
+                      <p className="text-gray-800 font-semibold">{profile.disability}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {profile.countryOfOrigin && (
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🌍</span>
+                    <div>
+                      <p className="text-sm text-green-600 font-medium">Country of Origin</p>
+                      <p className="text-green-800 font-semibold">{profile.countryOfOrigin}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               {profile.education && (
                 <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
                   <div className="flex items-center gap-3">
@@ -518,7 +624,7 @@ export default function ProfileViewPage() {
                 </div>
               )}
               {profile.occupation && (
-                <div className="bg-gradient-to-r from-amber-50 to-amber-100 p-4 rounded-xl border border-amber-200">
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">💼</span>
                     <div>
@@ -528,17 +634,52 @@ export default function ProfileViewPage() {
                   </div>
                 </div>
               )}
+              {profile.languagesKnown && profile.languagesKnown.length > 0 && (
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🗣️</span>
+                    <div>
+                      <p className="text-sm text-teal-600 font-medium">Languages Known</p>
+                      <p className="text-teal-800 font-semibold">{profile.languagesKnown.join(', ')}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {profile.numberOfSiblings !== undefined && profile.numberOfSiblings !== null && (
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">👨‍👩‍👧‍👦</span>
+                    <div>
+                      <p className="text-sm text-orange-600 font-medium">Number of Siblings</p>
+                      <p className="text-orange-800 font-semibold">{profile.numberOfSiblings}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
+          {/* Looking For Section */}
+          {profile.lookingFor && (
+            <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
+              <h3 className="font-bold text-blue-800 mb-4 text-xl flex items-center gap-2">
+                <span className="text-2xl">💖</span>
+                Looking For
+              </h3>
+              <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
+                <p className="text-gray-700 leading-relaxed text-lg">{profile.lookingFor}</p>
+              </div>
+            </div>
+          )}
+
           {/* About Section */}
           {profile.about && (
-            <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
+            <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
               <h3 className="font-bold text-blue-800 mb-4 text-xl flex items-center gap-2">
                 <span className="text-2xl">💭</span>
                 About Me
               </h3>
-              <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-6 rounded-xl border border-pink-200">
+              <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
                 <p className="text-gray-700 leading-relaxed text-lg">{profile.about}</p>
               </div>
             </div>
@@ -546,22 +687,36 @@ export default function ProfileViewPage() {
 
           {/* Gallery Images */}
           {profile.galleryImages && profile.galleryImages.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-xl p-6">
+            <div className="bg-white rounded-2xl shadow-md p-6">
               <h3 className="font-bold text-blue-800 mb-6 text-xl flex items-center gap-2">
                 <span className="text-2xl">📸</span>
                 Photo Gallery ({profile.galleryImages.length})
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {profile.galleryImages.map((img, idx) => (
-                  <div key={idx} className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-                    <img
-                      src={img}
-                      alt={`gallery-${idx}`}
-                      className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
-                  </div>
-                ))}
+                {profile.galleryImages.map((src, idx) => {
+                  const isVideo = /\.(mp4|webm|mov)$/i.test(src)
+                  const url = transformUrl(src)
+                  return (
+                    <div key={idx} className="relative overflow-hidden rounded-2xl shadow border border-blue-100 bg-white">
+                      {isVideo ? (
+                        <video
+                          src={url}
+                          controls
+                          className="w-full h-64 object-cover bg-black"
+                        />
+                      ) : (
+                        <img
+                          src={url}
+                          onError={handleImgError}
+                          onClick={() => openLightbox(url)}
+                          alt={`gallery-${idx}`}
+                          className="w-full h-64 object-cover transition-transform duration-300 cursor-zoom-in bg-white"
+                        />
+                      )}
+                      <div className="absolute inset-0 pointer-events-none"></div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -614,7 +769,54 @@ export default function ProfileViewPage() {
           </div>
         </div>
       )}
+      {/* Lightbox Overlay */}
+      {lightbox.open && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={closeLightbox}
+        >
+          <img
+            src={lightbox.src}
+            alt="preview"
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={() => setZoom((z) => ({ ...z, scale: z.scale > 1 ? 1 : 2, x: 0, y: 0 }))}
+            onWheel={(e) => {
+              e.preventDefault()
+              setZoom((z) => {
+                const delta = e.deltaY > 0 ? -0.2 : 0.2
+                const ns = Math.min(4, Math.max(1, z.scale + delta))
+                return { ...z, scale: ns }
+              })
+            }}
+            onMouseDown={(e) => setZoom((z) => ({ ...z, dragging: true, originX: e.clientX - z.x, originY: e.clientY - z.y }))}
+            onMouseMove={(e) => zoom.dragging && setZoom((z) => ({ ...z, x: e.clientX - z.originX, y: e.clientY - z.originY }))}
+            onMouseUp={() => setZoom((z) => ({ ...z, dragging: false }))}
+            onMouseLeave={() => setZoom((z) => ({ ...z, dragging: false }))}
+            onTouchStart={(e) => {
+              const t = e.touches[0]
+              setZoom((z) => ({ ...z, dragging: true, originX: t.clientX - z.x, originY: t.clientY - z.y }))
+            }}
+            onTouchMove={(e) => {
+              if (!zoom.dragging) return
+              const t = e.touches[0]
+              setZoom((z) => ({ ...z, x: t.clientX - z.originX, y: t.clientY - z.originY }))
+            }}
+            onTouchEnd={() => setZoom((z) => ({ ...z, dragging: false }))}
+            className={`max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl ${zoom.dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+            style={{ transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})` }}
+            onError={handleImgError}
+          />
+          <button
+            onClick={closeLightbox}
+            className="absolute top-4 right-4 text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 flex items-center justify-center text-2xl"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+      )}
       </div>
     </div>
   )
 }
+

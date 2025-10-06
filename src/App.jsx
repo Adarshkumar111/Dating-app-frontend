@@ -1,4 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
+import './styles/compact.css'
 import { useAuth } from './context/AuthContext.jsx'
 import Navbar from './components/Navbar.jsx'
 import MessageNotificationBanner from './components/MessageNotificationBanner.jsx'
@@ -40,9 +43,11 @@ export default function App() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen app-blue app-compact">
       {token && <Navbar />}
+      {token && <div className="h-16 md:h-20" />}
       {token && <MessageNotificationBanner />}
+      <ToastContainer position="top-center" autoClose={2500} hideProgressBar closeOnClick pauseOnHover={false} theme="colored" />
       <Routes>
         <Route path="/" element={<Navigate to={getDefaultRoute()} />} />
         <Route path="/signup" element={<SignupPage />} />

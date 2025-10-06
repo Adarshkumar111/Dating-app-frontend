@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getMe } from '../services/userService.js'
 import { updateProfile, changePassword, deleteGalleryImage } from '../services/profileService.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { MdPerson } from 'react-icons/md'
 
 export default function EditProfilePage() {
   const nav = useNavigate()
@@ -11,7 +12,7 @@ export default function EditProfilePage() {
     name: '', fatherName: '', motherName: '', age: '', location: '', education: '', occupation: '', about: ''
   })
   const [profilePhoto, setProfilePhoto] = useState(null)
-  // 8-slot files, index = slot number (0..7)
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState(null)
   const [slotFiles, setSlotFiles] = useState(Array(8).fill(null))
   const [existingGallery, setExistingGallery] = useState([])
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
@@ -19,7 +20,6 @@ export default function EditProfilePage() {
   const [info, setInfo] = useState('')
   const [tab, setTab] = useState('profile')
 
-  // Per-slot selection
   const handleSelectSlot = (idx, file) => {
     setSlotFiles(prev => {
       const next = [...prev]
@@ -29,7 +29,6 @@ export default function EditProfilePage() {
   }
   const clearSlot = (idx) => handleSelectSlot(idx, null)
 
-  // Slot data for UI: prefer selected file preview; else show existingGallery[idx]
   const slotViews = Array.from({ length: 8 }).map((_, i) => {
     const file = slotFiles[i]
     if (file) return { kind: 'new', previewUrl: URL.createObjectURL(file) }
@@ -58,6 +57,14 @@ export default function EditProfilePage() {
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
   const onPasswordChange = (e) => setPasswordForm({ ...passwordForm, [e.target.name]: e.target.value })
 
+  const handleProfilePhotoChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setProfilePhoto(file)
+      setProfilePhotoPreview(URL.createObjectURL(file))
+    }
+  }
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -65,7 +72,6 @@ export default function EditProfilePage() {
       const fd = new FormData()
       Object.entries(form).forEach(([k, v]) => fd.append(k, v))
       if (profilePhoto) fd.append('profilePhoto', profilePhoto)
-      // Send all selected files in slot order; use replace mode
       slotFiles.forEach(f => { if (f) fd.append('galleryImages', f) })
       fd.append('replaceGallery', 'true')
       
@@ -106,127 +112,154 @@ export default function EditProfilePage() {
     }
   }
 
+  const displayPhoto = profilePhotoPreview || currentUser?.profilePhoto
+  const firstLetter = currentUser?.name?.[0]?.toUpperCase() || 'U'
+
   return (
-    <div className="max-w-3xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
-      <h2 className="text-3xl font-bold mb-6 text-gray-800">Edit Profile</h2>
-      
-      {info && <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg">{info}</div>}
-
-      {/* Tabs */}
-      <div className="flex gap-4 mb-6 border-b">
-        <button
-          onClick={() => setTab('profile')}
-          className={`pb-2 px-4 font-semibold ${tab === 'profile' ? 'border-b-2 border-pink-500 text-pink-500' : 'text-gray-500'}`}
-        >
-          Profile Info
-        </button>
-        <button
-          onClick={() => setTab('password')}
-          className={`pb-2 px-4 font-semibold ${tab === 'password' ? 'border-b-2 border-pink-500 text-pink-500' : 'text-gray-500'}`}
-        >
-          Change Password
-        </button>
-      </div>
-
-      {/* Profile Tab */}
-      {tab === 'profile' && (
-        <form onSubmit={handleUpdateProfile} className="space-y-4">
-          <input name='name' placeholder='Full Name' value={form.name} onChange={onChange} className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
-          <input name='fatherName' placeholder='Father Name' value={form.fatherName} onChange={onChange} className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
-          <input name='motherName' placeholder='Mother Name' value={form.motherName} onChange={onChange} className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
-          <input name='age' placeholder='Age' value={form.age} onChange={onChange} className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
-          <input name='location' placeholder='Location' value={form.location} onChange={onChange} className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
-          <input name='education' placeholder='Education' value={form.education} onChange={onChange} className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
-          <input name='occupation' placeholder='Occupation' value={form.occupation} onChange={onChange} className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400" />
-          <textarea name='about' placeholder='About yourself' value={form.about} onChange={onChange} className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400 resize-none h-24" />
-
-          <div>
-            <label className="font-medium text-gray-700 block mb-2">Profile Photo:</label>
-            <input
-              type="file"
-              accept="image/jpeg,image/jpg,image/png,image/webp"
-              onChange={(e) => setProfilePhoto(e.target.files?.[0] || null)}
-              className="w-full border border-gray-300 rounded-lg p-3"
-            />
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm md:max-w-2xl lg:max-w-3xl">
+        {/* Card Container */}
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+            <button onClick={() => nav(-1)} className="text-blue-500">
+            </button>
+            <h1 className="text-lg font-bold text-blue-500">PROFILE</h1>
+            <button className="text-gray-500">
+            </button>
           </div>
 
-          <div>
-            <label className="font-medium text-gray-700 block mb-2">Gallery Photos (8 slots):</label>
-            <div className="grid grid-cols-3 gap-3">
-              {Array.from({ length: 8 }).map((_, i) => {
-                const item = slotViews[i]
-                const isPrimary = i === 0
-                return (
-                  <div key={i} className="relative group">
-                    <label className="block w-full h-24 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 cursor-pointer">
-                      {item ? (
-                        <img src={item.kind === 'existing' ? item.url : item.previewUrl} alt={`slot-${i+1}`} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">Empty</div>
-                      )}
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/jpg,image/png,image/webp"
-                        className="hidden"
-                        onChange={(e) => handleSelectSlot(i, e.target.files?.[0] || null)}
-                      />
-                    </label>
-                    <span className={`absolute top-1 left-1 text-[10px] px-2 py-0.5 rounded-full ${isPrimary ? 'bg-pink-500 text-white' : 'bg-white/90 text-gray-700'}`}>{isPrimary ? 'Primary' : `#${i+1}`}</span>
-                    {item && (
-                      <button
-                        type="button"
-                        onClick={() => (item.kind === 'existing' ? handleDeleteImage(item.url) : clearSlot(i))}
-                        className="absolute top-1 right-1 bg-gray-900/70 text-white rounded-full w-6 h-6 text-xs hover:bg-black"
-                        title="Remove"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
+          {/* Profile Section */}
+          <div className="px-6 py-8 text-center">
+            {/* Profile Photo with Upload */}
+            <div className="mb-4">
+              <label className="cursor-pointer">
+                <div className="w-24 h-24 mx-auto bg-blue-200 rounded-full flex items-center justify-center overflow-hidden">
+                  {displayPhoto ? (
+                    <img src={displayPhoto} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-4xl font-bold text-blue-500">{firstLetter}</span>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleProfilePhotoChange}
+                  className="hidden"
+                />
+              </label>
             </div>
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded mt-2 p-2">On save, gallery will be replaced by the selected files in slot order. Leave a slot empty to omit that position.</p>
+
+            {/* Name */}
+            <h2 className="text-xl font-bold text-blue-500 mb-6">{currentUser?.name || 'John Doe'}</h2>
+
+            {info && <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">{info}</div>}
+
+            {/* Photos Section */}
+            <div className="border border-blue-200 rounded-xl p-4 mb-6">
+              <h3 className="text-left text-blue-500 font-semibold mb-3">PHOTOS</h3>
+              <div className="grid grid-cols-3 gap-2">
+                {Array.from({ length: 6 }).map((_, i) => {
+                  const item = slotViews[i]
+                  return (
+                    <div key={i} className="relative group">
+                      <label className="block w-full aspect-square rounded-lg overflow-hidden border border-blue-100 bg-blue-50 cursor-pointer">
+                        {item ? (
+                          <img src={item.kind === 'existing' ? item.url : item.previewUrl} alt={`photo-${i+1}`} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-blue-100"></div>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                          className="hidden"
+                          onChange={(e) => handleSelectSlot(i, e.target.files?.[0] || null)}
+                        />
+                      </label>
+                      {item && (
+                        <button
+                          type="button"
+                          onClick={() => (item.kind === 'existing' ? handleDeleteImage(item.url) : clearSlot(i))}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs hover:bg-red-600"
+                          title="Remove"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Edit Form */}
+            {tab === 'profile' && (
+              <form onSubmit={handleUpdateProfile} className="space-y-3 text-left">
+                <input name='name' placeholder='Full Name' value={form.name} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
+                <input name='fatherName' placeholder='Father Name' value={form.fatherName} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
+                <input name='motherName' placeholder='Mother Name' value={form.motherName} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
+                <input name='age' placeholder='Age' value={form.age} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
+                <input name='location' placeholder='Location' value={form.location} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
+                <input name='education' placeholder='Education' value={form.education} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
+                <input name='occupation' placeholder='Occupation' value={form.occupation} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
+                <textarea name='about' placeholder='About yourself' value={form.about} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50 resize-none h-20" />
+
+                <button disabled={loading} type='submit' className={`w-full bg-blue-500 text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  {loading ? 'Updating...' : 'Save Changes'}
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={() => setTab('password')}
+                  className="w-full bg-gray-200 text-gray-700 font-semibold py-3 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Change Password
+                </button>
+              </form>
+            )}
+
+            {/* Password Tab */}
+            {tab === 'password' && (
+              <form onSubmit={handleChangePassword} className="space-y-3 text-left">
+                <input
+                  type='password'
+                  name='currentPassword'
+                  placeholder='Current Password'
+                  value={passwordForm.currentPassword}
+                  onChange={onPasswordChange}
+                  className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50"
+                />
+                <input
+                  type='password'
+                  name='newPassword'
+                  placeholder='New Password'
+                  value={passwordForm.newPassword}
+                  onChange={onPasswordChange}
+                  className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50"
+                />
+                <input
+                  type='password'
+                  name='confirmPassword'
+                  placeholder='Confirm New Password'
+                  value={passwordForm.confirmPassword}
+                  onChange={onPasswordChange}
+                  className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50"
+                />
+                <button disabled={loading} type='submit' className={`w-full bg-blue-500 text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  {loading ? 'Changing...' : 'Change Password'}
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setTab('profile')}
+                  className="w-full bg-gray-200 text-gray-700 font-semibold py-3 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Back to Profile
+                </button>
+              </form>
+            )}
           </div>
-
-          <button disabled={loading} type='submit' className={`w-full bg-pink-500 text-white font-semibold py-3 rounded-lg hover:bg-pink-600 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-            {loading ? 'Updating...' : 'Update Profile'}
-          </button>
-        </form>
-      )}
-
-      {/* Password Tab */}
-      {tab === 'password' && (
-        <form onSubmit={handleChangePassword} className="space-y-4">
-          <input
-            type='password'
-            name='currentPassword'
-            placeholder='Current Password'
-            value={passwordForm.currentPassword}
-            onChange={onPasswordChange}
-            className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400"
-          />
-          <input
-            type='password'
-            name='newPassword'
-            placeholder='New Password'
-            value={passwordForm.newPassword}
-            onChange={onPasswordChange}
-            className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400"
-          />
-          <input
-            type='password'
-            name='confirmPassword'
-            placeholder='Confirm New Password'
-            value={passwordForm.confirmPassword}
-            onChange={onPasswordChange}
-            className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400"
-          />
-          <button disabled={loading} type='submit' className={`w-full bg-pink-500 text-white font-semibold py-3 rounded-lg hover:bg-pink-600 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-            {loading ? 'Changing...' : 'Change Password'}
-          </button>
-        </form>
-      )}
+        </div>
+      </div>
     </div>
   )
 }

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react'
 import { getNotifications } from '../services/notificationService.js'
 import { respondToRequest } from '../services/requestService.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { getPendingProfileEdits, approveProfileEditApi, rejectProfileEditApi } from '../services/adminService.js'
 import { io } from 'socket.io-client'
 
 export default function NotificationDropdown({ onUpdate }) {
@@ -12,37 +11,19 @@ export default function NotificationDropdown({ onUpdate }) {
   const dropdownRef = useRef(null)
   const socketRef = useRef(null)
   const { user } = useAuth()
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  const dismissNotif = (id) => {
+    setNotifications((prev) => prev.filter(n => n._id !== id))
+    setUnreadCount((c) => Math.max(0, c - 1))
+  }
 
   const loadNotifications = async () => {
     try {
-      if (user?.isAdmin) {
-        // Admin: merge pending requests + pending profile edits
-        const [requests, edits] = await Promise.all([
-          getNotifications(),
-          getPendingProfileEdits()
-        ])
-        const normalizedEdits = (edits || []).map(e => ({
-          _id: e._id,
-          type: 'admin_edit',
-          from: { name: e.name, profilePhoto: e.profilePhoto },
-          updatedAt: e.updatedAt,
-          changedFields: e.changedFields || []
-        }))
-        const normalizedReqs = (requests || []).map(r => ({
-          _id: r._id,
-          type: r.type, // 'photo' | 'follow' | 'chat' | 'both'
-          from: r.from, // populated name/profilePhoto
-          to: r.to,     // populated name/profilePhoto
-          updatedAt: r.createdAt,
-        }))
-        // Sort by updatedAt desc
-        const merged = [...normalizedEdits, ...normalizedReqs].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-        setNotifications(merged)
-      } else {
-        // Regular user: pending requests sent to me
-        const data = await getNotifications()
-        setNotifications(data)
-      }
+      const data = await getNotifications()
+      setNotifications(data)
+      // If dropdown is closed, reflect new count on the badge
+      if (!isOpen) setUnreadCount(Array.isArray(data) ? data.length : 0)
     } catch (e) {
       console.error('Failed to load notifications:', e)
     }
@@ -65,13 +46,6 @@ export default function NotificationDropdown({ onUpdate }) {
           if (onUpdate) onUpdate()
         }
       })
-      // Admin-specific real-time for profile edits
-      if (user.isAdmin) {
-        socketRef.current.on('admin:pendingEdit', () => {
-          loadNotifications()
-          if (onUpdate) onUpdate()
-        })
-      }
     }
 
     return () => {
@@ -90,24 +64,10 @@ export default function NotificationDropdown({ onUpdate }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleRespond = async (requestId, action, type) => {
+  const handleRespond = async (requestId, action) => {
     setLoading(true)
     try {
-      if (user?.isAdmin) {
-        if (type === 'admin_edit') {
-          // Admin action on profile edit
-          if (action === 'accept') {
-            await approveProfileEditApi(requestId)
-          } else {
-            await rejectProfileEditApi(requestId, '')
-          }
-        } else {
-          // Admin responding to a pending request document
-          await respondToRequest({ requestId, action })
-        }
-      } else {
-        await respondToRequest({ requestId, action })
-      }
+      await respondToRequest({ requestId, action })
       await loadNotifications()
       if (onUpdate) onUpdate()
     } catch (e) {
@@ -120,15 +80,23 @@ export default function NotificationDropdown({ onUpdate }) {
     <div className="relative" ref={dropdownRef}>
       {/* Bell Icon with Badge */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          const next = !isOpen
+          setIsOpen(next)
+          // Do not zero unread on open; decrement only when items are dismissed
+          if (!next) {
+            // On close, refresh count from current list (in case some items remain)
+            setUnreadCount(Array.isArray(notifications) ? notifications.length : 0)
+          }
+        }}
         className="relative p-2 hover:bg-pink-600 rounded-full transition"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
-        {notifications.length > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-            {notifications.length}
+            {unreadCount}
           </span>
         )}
       </button>
@@ -147,7 +115,14 @@ export default function NotificationDropdown({ onUpdate }) {
           ) : (
             <div className="divide-y divide-gray-100">
               {notifications.map((notif) => (
-                <div key={notif._id} className="p-4 hover:bg-gray-50">
+                <div
+                  key={notif._id}
+                  className="p-4 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => {
+                    // Admin: tap to dismiss read-only entries
+                    if (user?.isAdmin) dismissNotif(notif._id)
+                  }}
+                >
                   <div className="flex items-start gap-3">
                     {notif.from?.profilePhoto ? (
                       <img
@@ -164,36 +139,44 @@ export default function NotificationDropdown({ onUpdate }) {
                     )}
                     
                     <div className="flex-1">
-                      <p className="font-semibold text-gray-800">{notif.from?.name || 'Unknown'}</p>
-                      {user?.isAdmin && notif.type === 'admin_edit' ? (
-                        <p className="text-sm text-gray-600 mt-1">submitted profile edits {notif.changedFields?.length ? `(${notif.changedFields.map(c=>c.field).join(', ')})` : ''}</p>
-                      ) : user?.isAdmin ? (
-                        <p className="text-sm text-gray-600 mt-1">
-                          {notif.type === 'photo' ? 'requested access to images 📸' : 'sent a connection request'}
-                          {notif.to?.name ? ` → ${notif.to.name}` : ''}
-                        </p>
-                      ) : notif.type === 'photo' ? (
-                        <p className="text-sm text-gray-600 mt-1">requested access to your photos 📸</p>
+                      {/* Admin: read-only summary of who sent to whom */}
+                      {user?.isAdmin ? (
+                        <>
+                          <p className="font-semibold text-gray-800">
+                            {notif.from?.name || 'Unknown'}
+                          </p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {notif.type === 'photo'
+                              ? `requested access to images of ${notif.to?.name || 'Unknown'}`
+                              : `sent a request to ${notif.to?.name || 'Unknown'}`}
+                          </p>
+                        </>
                       ) : (
-                        <p className="text-sm text-gray-600 mt-1">sent you a follow/chat request</p>
+                        <>
+                          <p className="font-semibold text-gray-800">{notif.from?.name || 'Unknown'}</p>
+                          {notif.type === 'photo' ? (
+                            <p className="text-sm text-gray-600 mt-1">requested access to your photos 📸</p>
+                          ) : (
+                            <p className="text-sm text-gray-600 mt-1">sent you a follow/chat request</p>
+                          )}
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              onClick={() => handleRespond(notif._id, 'accept')}
+                              disabled={loading}
+                              className="flex-1 bg-green-500 text-white text-sm py-1.5 rounded-lg hover:bg-green-600 transition disabled:opacity-50"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => handleRespond(notif._id, 'reject')}
+                              disabled={loading}
+                              className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </>
                       )}
-                      
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          onClick={() => handleRespond(notif._id, 'accept', notif.type)}
-                          disabled={loading}
-                          className="flex-1 bg-green-500 text-white text-sm py-1.5 rounded-lg hover:bg-green-600 transition disabled:opacity-50"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => handleRespond(notif._id, 'reject', notif.type)}
-                          disabled={loading}
-                          className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
-                        >
-                          Reject
-                        </button>
-                      </div>
                     </div>
                   </div>
                 </div>

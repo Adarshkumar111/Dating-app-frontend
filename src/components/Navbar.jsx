@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { getFriends } from '../services/userService.js'
+import { requestHelp, getHelpStatus } from '../services/helpService.js'
 import NotificationDropdown from './NotificationDropdown.jsx'
-import { MdMessage, MdMenu, MdClose } from 'react-icons/md'
+import { MdMessage, MdMenu, MdClose, MdSettings } from 'react-icons/md'
 
 export default function Navbar(){
   const { user, logout } = useAuth()
@@ -11,6 +12,9 @@ export default function Navbar(){
   const [refreshKey, setRefreshKey] = useState(0)
   const [unreadCount, setUnreadCount] = useState(0)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [helpStatus, setHelpStatus] = useState({ state: 'none', adminId: null })
+  const [helpBusy, setHelpBusy] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   
   if (!user || user.status === 'pending') return null
   
@@ -21,6 +25,36 @@ export default function Navbar(){
 
   const handleNotificationUpdate = () => {
     setRefreshKey(prev => prev + 1)
+  }
+
+  const loadHelpStatus = async () => {
+    try {
+      const data = await getHelpStatus()
+      // Expected: { status: 'none'|'pending'|'approved', adminId?: string }
+      if (data?.status) setHelpStatus({ state: data.status, adminId: data.adminId || null })
+    } catch (_) {
+      // ignore if endpoint not available
+    }
+  }
+
+  const onHelpClick = async () => {
+    if (helpBusy) return
+    try {
+      setHelpBusy(true)
+      // If approved and we know adminId, go to chat
+      if (helpStatus.state === 'approved' && helpStatus.adminId) {
+        nav(`/chat/${helpStatus.adminId}`)
+        return
+      }
+      await requestHelp()
+      setHelpStatus({ state: 'pending', adminId: null })
+      // Optionally show a small confirmation
+      // alert('Help request sent to admin')
+    } catch (e) {
+      // alert('Failed to send help request')
+    } finally {
+      setHelpBusy(false)
+    }
   }
 
   const loadUnreadCount = async () => {
@@ -38,8 +72,12 @@ export default function Navbar(){
   useEffect(() => {
     if (user && !user.isAdmin) {
       loadUnreadCount()
+      loadHelpStatus()
       // Refresh every 10 seconds
-      const interval = setInterval(loadUnreadCount, 10000)
+      const interval = setInterval(() => {
+        loadUnreadCount()
+        loadHelpStatus()
+      }, 10000)
       // Listen for on-demand refresh from ChatPage after markAsSeen
       const handler = () => loadUnreadCount()
       window.addEventListener('unread:update', handler)
@@ -51,57 +89,86 @@ export default function Navbar(){
   }, [user])
   
   return (
-    <nav className="bg-premium-gradient text-white shadow-xl relative z-50">
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="flex justify-between items-center">
+    <nav className="fixed top-2 md:top-4 left-0 right-0 z-50">
+      <div className="max-w-7xl mx-auto px-2 md:px-4 relative">
+        <div className="bg-premium-gradient text-white shadow-xl rounded-2xl relative">
+          <div className="px-4 py-3 md:py-4">
+            <div className="flex justify-between items-center">
           {/* Logo */}
           <Link to={user.isAdmin ? '/admin' : '/dashboard'} className="font-bold text-2xl hover:text-amber-300 transition-all duration-300 transform hover:scale-105">
             <span className="text-amber-400">M</span> Nikah
           </Link>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex gap-8 items-center">
+          {/* Desktop Menu (minimal + Discover/Premium restored) */}
+          <div className="hidden md:flex items-center gap-4">
+            {/* Discover */}
             {!user.isAdmin && (
-              <Link to='/dashboard' className="hover:text-amber-300 transition-all duration-300 font-medium transform hover:scale-105">
+              <Link to='/dashboard' className="hover:text-amber-300 transition-all duration-300 font-medium">
                 Discover
               </Link>
             )}
-            <Link to={`/profile/${user.id}`} className="hover:text-amber-300 transition-all duration-300 font-medium transform hover:scale-105">
-              Profile
-            </Link>
-            <Link to='/blocked-users' className="hover:text-amber-300 transition-all duration-300 font-medium transform hover:scale-105">
-              Blocked
-            </Link>
-            {user.isAdmin && (
-              <Link to='/admin' className="hover:text-amber-300 transition-all duration-300 font-medium transform hover:scale-105">
-                Admin Panel
-              </Link>
-            )}
+
+            {/* Premium */}
             {!user.isAdmin && (
-              <Link to='/premium' className="bg-gold-gradient text-blue-900 px-4 py-2 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 transform hover:scale-105">
+              <Link to='/premium' className="bg-gold-gradient text-yellow-400 px-4 py-2 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 hover:bg-amber-300 hover:text-black">
                 Premium
               </Link>
             )}
-            
-            {/* Message Notification */}
-            {!user.isAdmin && unreadCount > 0 && (
-              <Link to='/dashboard?tab=messages' className="relative p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-all duration-300" title="Messages">
-                <MdMessage className="w-6 h-6" />
-                <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center font-bold animate-pulse-glow">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              </Link>
-            )}
-            
+
             {/* Notification Bell */}
             <NotificationDropdown key={refreshKey} onUpdate={handleNotificationUpdate} />
-            
-            <button 
-              onClick={handleLogout} 
-              className="bg-white text-blue-800 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg"
-            >
-              Logout
-            </button>
+
+            {/* Settings Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSettings((s) => !s)}
+                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-all duration-300"
+                aria-label="Settings"
+              >
+                <MdSettings className="w-6 h-6" />
+              </button>
+              {showSettings && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowSettings(false)} />
+                  <div className="absolute right-0 top-10 bg-white text-blue-900 rounded-xl shadow-xl border border-blue-100 min-w-[200px] z-50 overflow-hidden">
+                    <button
+                      onClick={() => { setShowSettings(false); nav(`/profile/${user.id}`) }}
+                      className="w-full text-left px-4 py-3 hover:bg-blue-50"
+                    >
+                      Profile
+                    </button>
+                    <button
+                      onClick={() => { setShowSettings(false); nav('/blocked-users') }}
+                      className="w-full text-left px-4 py-3 hover:bg-blue-50"
+                    >
+                      Blocked Users
+                    </button>
+                    {user.isAdmin ? (
+                      <button
+                        onClick={() => { setShowSettings(false); nav('/admin') }}
+                        className="w-full text-left px-4 py-3 hover:bg-blue-50"
+                      >
+                        Admin Panel
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => { setShowSettings(false); onHelpClick() }}
+                        disabled={helpBusy}
+                        className={`w-full text-left px-4 py-3 hover:bg-blue-50 ${helpStatus.state === 'approved' ? 'text-green-600' : helpStatus.state === 'pending' ? 'text-amber-600' : ''}`}
+                      >
+                        {helpStatus.state === 'approved' ? 'Chat Admin' : helpStatus.state === 'pending' ? 'Help Pending' : 'Help'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setShowSettings(false); handleLogout() }}
+                      className="w-full text-left px-4 py-3 hover:bg-blue-50"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
@@ -112,79 +179,54 @@ export default function Navbar(){
             {isMobileMenuOpen ? <MdClose className="w-6 h-6" /> : <MdMenu className="w-6 h-6" />}
           </button>
         </div>
+      </div>
 
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 right-0 bg-blue-900 shadow-2xl animate-slide-down z-40">
-            <div className="px-4 py-6 space-y-4">
-              {!user.isAdmin && (
-                <Link 
-                  to='/dashboard' 
-                  className="block py-3 px-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all duration-300 font-medium"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Discover
-                </Link>
-              )}
-              <Link 
-                to={`/profile/${user.id}`} 
-                className="block py-3 px-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all duration-300 font-medium"
-                onClick={() => setIsMobileMenuOpen(false)}
+      {/* Mobile Menu (simplified) */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden absolute left-2 right-2 md:left-4 md:right-4 top-[calc(100%+0.25rem)] bg-blue-900 shadow-2xl animate-slide-down z-40 rounded-2xl overflow-hidden">
+          <div className="px-4 py-4 space-y-2">
+              <button 
+                onClick={() => { setIsMobileMenuOpen(false); nav(`/profile/${user.id}`) }}
+                className="block w-full text-left py-2 px-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all duration-300 font-medium"
               >
                 Profile
-              </Link>
-              <Link 
-                to='/blocked-users' 
-                className="block py-3 px-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all duration-300 font-medium"
-                onClick={() => setIsMobileMenuOpen(false)}
+              </button>
+              <button 
+                onClick={() => { setIsMobileMenuOpen(false); nav('/blocked-users') }}
+                className="block w-full text-left py-2 px-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all duration-300 font-medium"
               >
                 Blocked Users
-              </Link>
-              {user.isAdmin && (
-                <Link 
-                  to='/admin' 
-                  className="block py-3 px-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all duration-300 font-medium"
-                  onClick={() => setIsMobileMenuOpen(false)}
+              </button>
+              {user.isAdmin ? (
+                <button 
+                  onClick={() => { setIsMobileMenuOpen(false); nav('/admin') }} 
+                  className="block w-full text-left py-2 px-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all duration-300 font-medium"
                 >
                   Admin Panel
-                </Link>
-              )}
-              {!user.isAdmin && (
-                <Link 
-                  to='/premium' 
-                  className="block bg-gold-gradient text-blue-900 py-3 px-4 rounded-lg font-semibold text-center transition-all duration-300"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                </button>
+              ) : (
+                <button
+                  onClick={() => { onHelpClick(); setIsMobileMenuOpen(false) }}
+                  disabled={helpBusy}
+                  className={`block w-full text-left py-2 px-4 rounded-lg font-medium transition-all duration-300 ${
+                    helpStatus.state === 'approved' ? 'bg-green-500 text-white hover:bg-green-600' :
+                    helpStatus.state === 'pending' ? 'bg-yellow-400 text-blue-900 hover:bg-yellow-500' :
+                    'text-white/90 hover:text-white hover:bg-white hover:bg-opacity-10'
+                  }`}
                 >
-                  Premium
-                </Link>
+                  {helpStatus.state === 'approved' ? 'Chat Admin' : helpStatus.state === 'pending' ? 'Help Pending' : 'Help'}
+                </button>
               )}
-              
-              {/* Mobile Messages Link */}
-              {!user.isAdmin && unreadCount > 0 && (
-                <Link 
-                  to='/dashboard?tab=messages' 
-                  className="flex items-center justify-between py-3 px-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all duration-300 font-medium"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <span>Messages</span>
-                  <span className="bg-pink-500 text-white text-xs rounded-full min-w-[20px] h-5 px-2 flex items-center justify-center font-bold">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                </Link>
-              )}
-              
               <button 
-                onClick={() => {
-                  handleLogout()
-                  setIsMobileMenuOpen(false)
-                }} 
-                className="w-full bg-white text-blue-800 py-3 px-4 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-300"
+                onClick={() => { handleLogout(); setIsMobileMenuOpen(false) }} 
+                className="w-full text-left py-2 px-4 hover:bg-white hover:bg-opacity-10 rounded-lg transition-all duration-300 font-medium"
               >
                 Logout
               </button>
-            </div>
           </div>
-        )}
+        </div>
+      )}
+        </div>
       </div>
     </nav>
   )

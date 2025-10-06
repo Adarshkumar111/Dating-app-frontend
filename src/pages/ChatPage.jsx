@@ -29,10 +29,13 @@ export default function ChatPage() {
     const [reactionMenu, setReactionMenu] = useState(null)
     const [showOptions, setShowOptions] = useState(false)
     const [isUserBlocked, setIsUserBlocked] = useState(false)
+    const [unreadCount, setUnreadCount] = useState(0)
 
     const navigate = useNavigate()
     const chatEndRef = useRef(null)
     const socketRef = useRef(null)
+    const currentRoomRef = useRef(null)
+    const pendingClientIdsRef = useRef(new Set())
     const fileInputRef = useRef(null)
     const videoInputRef = useRef(null)
     const videoRef = useRef(null)
@@ -68,11 +71,54 @@ export default function ChatPage() {
                     transports: ['websocket'],
                     auth: { token: localStorage.getItem('token') }
                 })
+            }
 
+            // Always (re)join the active chat room and leave the previous one
+            if (socketRef.current) {
+                if (currentRoomRef.current && currentRoomRef.current !== data.chatId) {
+                    socketRef.current.emit('leave', currentRoomRef.current)
+                }
                 socketRef.current.emit('join', data.chatId)
-
+                currentRoomRef.current = data.chatId
+            }
+            if (socketRef.current && !socketRef.current.__handlersAttached) {
+                socketRef.current.__handlersAttached = true
                 socketRef.current.on('message', (m) => {
                     const fromSelf = String(m.sender) === String(currentUser.id)
+                    // If this is my echo and I have an optimistic message with same clientId, replace it
+                    if (fromSelf && m.clientId && pendingClientIdsRef.current.has(m.clientId)) {
+                        pendingClientIdsRef.current.delete(m.clientId)
+                        setMessages(prev => {
+                            const idx = prev.findIndex(x => x.clientId === m.clientId)
+                            if (idx !== -1) {
+                                const copy = [...prev]
+                                copy[idx] = { ...m, fromSelf: true }
+                                return copy
+                            }
+                            return [...prev, { ...m, fromSelf: true }]
+                        })
+                        return
+                    }
+                    // Fallback: no clientId from server -> replace the most recent local optimistic if same text within 3s
+                    if (fromSelf && (!m.clientId)) {
+                        setMessages(prev => {
+                            const copy = [...prev]
+                            const serverTs = m.sentAt ? new Date(m.sentAt).getTime() : Date.now()
+                            for (let i = copy.length - 1; i >= 0; i--) {
+                                const cand = copy[i]
+                                if (cand.fromSelf && String(cand._id || '').startsWith('local-') && cand.text === m.text) {
+                                    const candTs = cand.sentAt ? new Date(cand.sentAt).getTime() : serverTs
+                                    if (Math.abs(serverTs - candTs) <= 3000) {
+                                        copy[i] = { ...m, fromSelf: true }
+                                        return copy
+                                    }
+                                    break
+                                }
+                            }
+                            return [...prev, { ...m, fromSelf }]
+                        })
+                        return
+                    }
                     setMessages(prev => [...prev, { ...m, fromSelf }])
 
                     if (!fromSelf) {
@@ -132,8 +178,9 @@ export default function ChatPage() {
     }, [messages])
 
     const onSend = async (e) => {
-        e.preventDefault()
-        if (!text.trim() || !chatData) return
+        e && e.preventDefault()
+        const msg = text.trim()
+        if (!msg || !chatData) return
 
         // Check if blocked before sending
         if (chatData.isBlockedByMe || chatData.isBlockedByThem) {
@@ -141,14 +188,29 @@ export default function ChatPage() {
         }
 
         try {
-            await sendMsg(chatData.chatId, { messageText: text, messageType: 'text' })
+            // Optimistic UI update
+            const clientId = 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2,8)
+            pendingClientIdsRef.current.add(clientId)
+            const local = {
+                _id: 'local-' + Date.now(),
+                sender: currentUser.id,
+                fromSelf: true,
+                text: msg,
+                messageType: 'text',
+                sentAt: new Date().toISOString(),
+                reactions: [],
+                clientId
+            }
+            setMessages(prev => [...prev, local])
             setText('')
+            await sendMsg(chatData.chatId, { messageText: msg, messageType: 'text', clientId })
         } catch (e) {
             // Don't show alert for block errors
             if (e.response?.data?.blocked) {
                 return
             }
             alert(e.response?.data?.message || 'Failed to send')
+            // Rollback optimistic if needed (optional): we keep it for now to avoid flicker.
         }
     }
 
@@ -352,9 +414,10 @@ export default function ChatPage() {
     const otherUser = getOtherUser()
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50">
+        <div className="fixed inset-0 bg-blue-50 px-2 overflow-hidden pt-20 md:pt-24" style={{ overscrollBehavior: 'none' }}>
+            <div className="max-w-7xl w-full h-full mx-auto bg-white rounded-2xl shadow-md flex flex-col">
             {/* Header */}
-            <div className="bg-premium-gradient text-white p-4 flex items-center gap-3 shadow-xl relative">
+            <div className="bg-blue-500 text-white px-4 py-2 md:py-3 flex items-center gap-3 shadow rounded-t-2xl relative">
                 <Link to={`/profile/${otherUser?._id}`} className="flex items-center gap-3 hover:opacity-90 flex-1">
                     <div className="w-12 h-12 rounded-full bg-white text-blue-800 flex items-center justify-center font-bold text-xl shadow-lg">
                         {otherUser?.profilePhoto ? (
@@ -366,27 +429,43 @@ export default function ChatPage() {
                     <div>
                         <div className="font-semibold text-lg">{otherUser?.name || 'Chat'}</div>
                         {(chatData?.isBlockedByMe || chatData?.isBlockedByThem) ? (
-                            <div className="text-sm text-red-200 flex items-center gap-1">
+                            <div className="text-xs md:text-sm text-red-100 flex items-center gap-1">
                                 <MdBlock />
                                 {chatData.isBlockedByMe ? 'You blocked this user' : 'You are blocked'}
                             </div>
                         ) : (
-                            <div className="text-sm text-amber-200">Click to view profile</div>
+                            <div className="text-xs md:text-sm text-blue-100">Tap to view profile</div>
                         )}
                     </div>
                 </Link>
-                {hasNewMessage && (
-                    <div className="absolute right-14 top-1/2 -translate-y-1/2 animate-bounce">
-                        <IoMdNotifications className="text-yellow-300 text-3xl" />
-                    </div>
-                )}
+                {/* Right actions: bell + options */}
+                <div className="flex items-center gap-1 md:gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setNotification(null)}
+                        className="relative p-2 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors"
+                        aria-label="Notifications"
+                    >
+                        <IoMdNotifications className="text-2xl md:text-3xl text-white" />
+                        {(hasNewMessage || !!notification) && (
+                            <>
+                                <span className="absolute top-1 right-1 block w-2 h-2 bg-yellow-300 rounded-full"></span>
+                                <span className="absolute top-1 right-1 block w-2 h-2 bg-yellow-300 rounded-full animate-ping"></span>
+                            </>
+                        )}
+                    </button>
                 {/* Options Menu */}
                 <div className="relative">
                     <button
-                        onClick={() => setShowOptions(!showOptions)}
-                        className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-all duration-300"
+                        onClick={() => { setShowOptions(!showOptions); setUnreadCount(0) }}
+                        className="relative p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-all duration-300"
                     >
                         <MdMoreVert className="text-2xl" />
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] leading-4 rounded-full text-center">
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                        )}
                     </button>
                     {showOptions && (
                         <>
@@ -418,6 +497,7 @@ export default function ChatPage() {
                             </div>
                         </>
                     )}
+                    </div>
                 </div>
             </div>
 
@@ -444,16 +524,16 @@ export default function ChatPage() {
             )}
 
             {/* Messages */}
-            <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3 bg-gradient-to-b from-gray-50 to-blue-50">
+            <div className="flex-1 p-2 md:p-3 overflow-y-auto flex flex-col gap-2 bg-blue-50" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', overscrollBehaviorY: 'contain' }}>
                 {messages.map((m) => {
                     const status = getMessageStatus(m)
                     return (
                         <div
                             key={m._id}
                             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, message: m }) }}
-                            className={`max-w-[70%] p-4 rounded-2xl break-words relative group shadow-lg transition-all duration-300 hover:shadow-xl ${
+                            className={`max-w-[78%] md:max-w-[70%] px-3 py-2 md:px-4 md:py-3 rounded-2xl break-words relative group shadow ${
                                 m.fromSelf 
-                                    ? 'self-end bg-coral-gradient text-white' 
+                                    ? 'self-end bg-blue-500 text-white' 
                                     : 'self-start bg-white border border-blue-100'
                                 }`}
                         >
@@ -491,7 +571,7 @@ export default function ChatPage() {
                                 </button>
                             )}
 
-                            <div className={`text-xs mt-2 flex items-center gap-1 ${m.fromSelf ? 'text-pink-100' : 'text-gray-500'}`}>
+                            <div className={`text-[10px] md:text-xs mt-1 md:mt-2 flex items-center gap-1 ${m.fromSelf ? 'text-blue-100' : 'text-gray-500'}`}>
                                 <span>{new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                 {status && (
                                     <>
@@ -585,7 +665,7 @@ export default function ChatPage() {
             )}
 
             {/* Input */}
-            <div className="p-4 border-t border-blue-100 bg-white shadow-lg">
+            <div className="p-3 md:p-4 border-t border-blue-100 bg-white shadow rounded-b-2xl sticky bottom-0">
                 {(chatData?.isBlockedByMe || chatData?.isBlockedByThem) && (
                     <div className="mb-4 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl">
                         <div className="flex items-center justify-between">
@@ -621,17 +701,9 @@ export default function ChatPage() {
                     <span className="font-medium">Uploading media...</span>
                 </div>}
 
-                <form onSubmit={onSend} className="flex gap-3 items-center relative">
+                <form onSubmit={onSend} className="flex gap-2 md:gap-3 items-center relative">
                     <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'image')} className="hidden" />
                     <input ref={videoInputRef} type="file" accept="video/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'video')} className="hidden" />
-
-                    <button type="button" disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300" title="Emoji">
-                        <BsEmojiSmile className="text-2xl" />
-                    </button>
-
-                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300" title="Image">
-                        <MdImage className="text-2xl" />
-                    </button>
 
                     <div className="relative">
                         <button type="button" onClick={() => setShowMediaMenu(!showMediaMenu)} disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300">
@@ -643,38 +715,38 @@ export default function ChatPage() {
                                 <div className="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-2xl border border-blue-100 py-2 min-w-[200px] z-40">
                                     <button onClick={() => openCamera('photo')} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100 text-left">
                                         <MdCamera className="text-xl text-blue-500" />
-                                        <span className="text-sm font-medium">Take Photo</span>
+                                        <span className="text-sm font-medium">Camera</span>
                                     </button>
                                     <button onClick={() => { fileInputRef.current?.click(); setShowMediaMenu(false) }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100 text-left">
                                         <MdPhotoLibrary className="text-xl text-green-500" />
-                                        <span className="text-sm font-medium">Photo Gallery</span>
-                                    </button>
-                                    <button onClick={() => openCamera('video')} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100 text-left">
-                                        <MdVideocam className="text-xl text-red-500" />
-                                        <span className="text-sm font-medium">Record Video</span>
-                                    </button>
-                                    <button onClick={() => { videoInputRef.current?.click(); setShowMediaMenu(false) }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100 text-left">
-                                        <MdVideoLibrary className="text-xl text-purple-500" />
-                                        <span className="text-sm font-medium">Video Gallery</span>
+                                        <span className="text-sm font-medium">Image</span>
                                     </button>
                                 </div>
                             </>
                         )}
                     </div>
 
-                    <input
-                        value={text}
-                        onChange={e => setText(e.target.value)}
-                        placeholder={(chatData?.isBlockedByMe || chatData?.isBlockedByThem) ? "Cannot send messages" : "Type a message..."}
-                        disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem}
-                        className="flex-1 px-4 py-3 rounded-full border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all duration-300"
-                    />
-
-                    <button type="submit" disabled={!text.trim() || uploading || chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-3 bg-coral-gradient text-white rounded-full hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105">
-                        <MdSend className="text-xl" />
-                    </button>
+                    <div className="relative flex-1">
+                        <input
+                            value={text}
+                            onChange={e => setText(e.target.value)}
+                            placeholder={(chatData?.isBlockedByMe || chatData?.isBlockedByThem) ? "Cannot send messages" : "Type a message..."}
+                            disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem}
+                            className="w-full pr-12 pl-4 py-2 md:py-2.5 rounded-full border-2 border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
+                        />
+                        <button
+                            type="button"
+                            onClick={onSend}
+                            disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                            aria-label="Send"
+                        >
+                            <MdSend className="text-lg" />
+                        </button>
+                    </div>
                 </form>
             </div>
+        </div>
         </div>
     )
 }

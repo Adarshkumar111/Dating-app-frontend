@@ -1,0 +1,54 @@
+/* Global compact blue/white theme overrides */
+:root {
+  --blue-50: #eff6ff;
+  --blue-100: #dbeafe;
+  --blue-200: #bfdbfe;
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --text-blue: #1d4ed8;
+}
+
+/* App wrappers */
+.app-blue { background-color: var(--blue-50); }
+.app-blue .text-blue-800 { color: var(--text-blue) !important; }
+.app-blue .bg-blue-50 { background-color: var(--blue-50) !important; }
+.app-blue .bg-blue-100 { background-color: var(--blue-100) !important; }
+.app-blue .bg-blue-200 { background-color: var(--blue-200) !important; }
+.app-blue .bg-blue-500 { background-color: var(--blue-500) !important; }
+.app-blue .hover\:bg-blue-600:hover { background-color: var(--blue-600) !important; }
+.app-blue .border-blue-200 { border-color: var(--blue-200) !important; }
+.app-blue .bg-premium-gradient, .app-blue [class*="gradient"] { background-image: none !important; }
+.app-blue .bg-premium-gradient { background-color: var(--blue-500) !important; }
+
+/* Compact sizing */
+.app-compact { font-size: 15px; }
+.app-compact h1 { font-size: 1.5rem; }
+.app-compact h2 { font-size: 1.25rem; }
+.app-compact h3 { font-size: 1.1rem; }
+
+/* Common paddings reduced */
+.app-compact .py-8 { padding-top: 1.25rem !important; padding-bottom: 1.25rem !important; }
+.app-compact .px-8 { padding-left: 1.25rem !important; padding-right: 1.25rem !important; }
+.app-compact .p-6 { padding: 1rem !important; }
+.app-compact .p-8 { padding: 1.25rem !important; }
+.app-compact .px-6 { padding-left: 1rem !important; padding-right: 1rem !important; }
+.app-compact .py-6 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+.app-compact .py-3 { padding-top: 0.6rem !important; padding-bottom: 0.6rem !important; }
+.app-compact .px-6 { padding-left: 1rem !important; padding-right: 1rem !important; }
+
+/* Buttons and inputs */
+.app-compact button { padding: 0.6rem 1rem !important; border-radius: 0.6rem !important; }
+.app-compact input, .app-compact select, .app-compact textarea { padding: 0.6rem 0.9rem !important; border-radius: 0.6rem !important; }
+
+/* Cards, radii, shadows */
+.app-compact .rounded-3xl { border-radius: 1rem !important; }
+.app-compact .rounded-2xl { border-radius: 0.9rem !important; }
+.app-compact .rounded-xl { border-radius: 0.8rem !important; }
+.app-compact .shadow-2xl, .app-compact .shadow-xl { box-shadow: 0 6px 16px rgba(0,0,0,.08) !important; }
+
+/* Reduce animations and hover scaling */
+.app-compact .transform, .app-compact .transition-all, .app-compact [class*="transition"] { transition-duration: 150ms !important; }
+.app-compact .hover\:scale-105:hover, .app-compact .hover\:scale-110:hover { transform: none !important; }
+
+/* Navbar and banners minimal height */
+.app-compact .navbar, .app-compact [data-role="banner"] { min-height: 48px; }
