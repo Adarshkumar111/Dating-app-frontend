@@ -251,7 +251,7 @@ export default function ProfileViewPage() {
 
   return (
     <div className="min-h-screen bg-blue-50 py-6 px-3">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         {isAdmin && !isOwnProfile && (
           <div className="mb-6 p-4 bg-white text-blue-800 rounded-xl border border-blue-200 shadow-md flex items-center justify-between">
             <div className="flex items-center gap-3">

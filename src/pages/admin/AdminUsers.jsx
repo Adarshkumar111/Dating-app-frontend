@@ -90,22 +90,17 @@ export default function AdminUsers() {
       setLoading(false);
     }
   };
-
   const viewProfile = (userId) => {
     navigate(`/profile/${userId}`);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {info && (
-        <div className="p-4 bg-green-50 text-green-800 rounded-xl border border-green-200 text-center font-medium">
-          {info}
-        </div>
+        <div className="p-3 md:p-4 text-sm md:text-base bg-blue-50 text-blue-800 border border-blue-200 rounded-lg">{info}</div>
       )}
-
       {/* Search Bar */}
       <div className="bg-white rounded-xl shadow-md p-4">
-        <h3 className="text-lg font-semibold mb-3 text-gray-700">Search Users</h3>
         <div className="flex gap-2">
           <div className="flex-1 relative">
             <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />

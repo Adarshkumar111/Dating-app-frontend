@@ -4,6 +4,7 @@ import { getMe } from '../services/userService.js'
 import { updateProfile, changePassword, deleteGalleryImage } from '../services/profileService.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { MdPerson } from 'react-icons/md'
+import { toast } from 'react-toastify'
 
 export default function EditProfilePage() {
   const nav = useNavigate()
@@ -76,29 +77,51 @@ export default function EditProfilePage() {
       fd.append('replaceGallery', 'true')
       
       const res = await updateProfile(fd)
+      toast.success('✅ Your profile changes have been submitted for admin approval!', {
+        position: 'top-center',
+        autoClose: 4000
+      })
       setInfo(res?.message || 'Edits submitted for admin approval')
       setLoading(false)
     } catch (error) {
       setLoading(false)
-      setInfo(error.response?.data?.message || 'Update failed')
+      const errorMsg = error.response?.data?.message || 'Update failed'
+      toast.error(errorMsg, {
+        position: 'top-center',
+        autoClose: 3000
+      })
+      setInfo(errorMsg)
     }
   }
 
   const handleChangePassword = async (e) => {
     e.preventDefault()
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error('Passwords do not match', {
+        position: 'top-center',
+        autoClose: 3000
+      })
       setInfo('Passwords do not match')
       return
     }
     setLoading(true)
     try {
       await changePassword({ currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword })
+      toast.success('🔐 Password changed successfully!', {
+        position: 'top-center',
+        autoClose: 3000
+      })
       setInfo('Password changed successfully!')
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
       setLoading(false)
     } catch (error) {
       setLoading(false)
-      setInfo(error.response?.data?.message || 'Password change failed')
+      const errorMsg = error.response?.data?.message || 'Password change failed'
+      toast.error(errorMsg, {
+        position: 'top-center',
+        autoClose: 3000
+      })
+      setInfo(errorMsg)
     }
   }
 
@@ -106,9 +129,18 @@ export default function EditProfilePage() {
     try {
       await deleteGalleryImage(imageUrl)
       setExistingGallery(existingGallery.filter(img => img !== imageUrl))
+      toast.success('🗑️ Image deleted successfully', {
+        position: 'top-center',
+        autoClose: 2000
+      })
       setInfo('Image deleted')
     } catch (error) {
-      setInfo(error.response?.data?.message || 'Delete failed')
+      const errorMsg = error.response?.data?.message || 'Delete failed'
+      toast.error(errorMsg, {
+        position: 'top-center',
+        autoClose: 3000
+      })
+      setInfo(errorMsg)
     }
   }
 

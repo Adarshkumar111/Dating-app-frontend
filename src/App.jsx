@@ -49,8 +49,8 @@ export default function App() {
       {token && <div className="h-16 md:h-20" />}
       {token && <MessageNotificationBanner />}
       {token && <MobileBottomBar />}
-      {/* Bottom spacer for mobile bottom bar */}
-      {token && <div className="h-14 md:h-0" />}
+      {/* Bottom spacer for mobile bottom bar - hidden on chat routes */}
+      {token && window.location.pathname && !window.location.pathname.startsWith('/chat/') && <div className="h-14 md:h-0" />}
       <ToastContainer position="top-center" autoClose={2500} hideProgressBar closeOnClick pauseOnHover={false} theme="colored" />
       <Routes>
         <Route path="/" element={<Navigate to={getDefaultRoute()} />} />

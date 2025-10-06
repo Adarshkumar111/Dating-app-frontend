@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { io } from 'socket.io-client'
 import { getChatWithUser, sendMessage as sendMsg, deleteMessage as delMsg, addReaction as addReact, uploadMedia, markAsSeen, blockChat, unblockChat } from '../services/chatService.js'
 import { blockUser, unblockUser } from '../services/userService.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { IoMdAdd, IoMdClose, IoMdNotifications } from 'react-icons/io'
 import { MdImage, MdVideocam, MdCamera, MdPhotoLibrary, MdVideoLibrary, MdSend, MdDoneAll, MdDone, MdBlock, MdMoreVert } from 'react-icons/md'
 import { BsEmojiSmile } from 'react-icons/bs'
+import { connectSocket, getSocket } from '../services/socketService.js'
 
 export default function ChatPage() {
     const { chatId: userIdParam } = useParams()
@@ -45,7 +45,10 @@ export default function ChatPage() {
     useEffect(() => {
         loadChat()
         return () => {
-            if (socketRef.current) socketRef.current.disconnect()
+            // Leave chat room on unmount, but don't disconnect socket (centrally managed)
+            if (socketRef.current && currentRoomRef.current) {
+                socketRef.current.emit('leave', currentRoomRef.current)
+            }
             if (cameraStream) cameraStream.getTracks().forEach(track => track.stop())
         }
     }, [userIdParam])
@@ -66,12 +69,9 @@ export default function ChatPage() {
                 } catch (e) { /* ignore */ }
             }
 
-            if (!socketRef.current) {
-                socketRef.current = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
-                    transports: ['websocket'],
-                    auth: { token: localStorage.getItem('token') }
-                })
-            }
+            // Use centralized socket service
+            connectSocket(currentUser.id)
+            socketRef.current = getSocket()
 
             // Always (re)join the active chat room and leave the previous one
             if (socketRef.current) {
@@ -81,8 +81,15 @@ export default function ChatPage() {
                 socketRef.current.emit('join', data.chatId)
                 currentRoomRef.current = data.chatId
             }
-            if (socketRef.current && !socketRef.current.__handlersAttached) {
-                socketRef.current.__handlersAttached = true
+            // Remove old handlers if they exist
+            if (socketRef.current) {
+                socketRef.current.off('message')
+                socketRef.current.off('messageDeleted')
+                socketRef.current.off('reactionUpdated')
+                socketRef.current.off('chatBlocked')
+                socketRef.current.off('chatUnblocked')
+                
+                // Attach fresh handlers
                 socketRef.current.on('message', (m) => {
                     const fromSelf = String(m.sender) === String(currentUser.id)
                     // If this is my echo and I have an optimistic message with same clientId, replace it

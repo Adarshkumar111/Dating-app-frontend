@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { getNotifications } from '../services/notificationService.js'
+import { getNotifications, markAsRead } from '../services/notificationService.js'
 import { respondToRequest } from '../services/requestService.js'
 import { getPendingProfileEdits, approveProfileEditApi, rejectProfileEditApi } from '../services/adminService.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { io } from 'socket.io-client'
+import { connectSocket, onSocketEvent } from '../services/socketService.js'
 
-export default function NotificationDropdown({ onUpdate }) {
+export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
   const [notifications, setNotifications] = useState([])
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -15,17 +15,24 @@ export default function NotificationDropdown({ onUpdate }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const getStorageKey = () => `admin:dismissed:notifs:${user?.id || 'anon'}`
 
-  const dismissNotif = (id) => {
+  const dismissNotif = async (id, notifKind) => {
     setNotifications((prev) => prev.filter(n => n._id !== id))
     setUnreadCount((c) => Math.max(0, c - 1))
     try {
-      if (user?.isAdmin) {
+      // For system notifications, mark as read in database
+      if (notifKind === 'system') {
+        await markAsRead(null, id)
+      }
+      // For admin dismissed non-edit items, use localStorage
+      if (user?.isAdmin && notifKind !== 'system') {
         const raw = localStorage.getItem(getStorageKey())
         const setIds = new Set(raw ? JSON.parse(raw) : [])
         setIds.add(id)
         localStorage.setItem(getStorageKey(), JSON.stringify(Array.from(setIds)))
       }
-    } catch {}
+    } catch (err) {
+      console.error('Failed to dismiss notification:', err)
+    }
   }
 
   const loadNotifications = async () => {
@@ -50,19 +57,47 @@ export default function NotificationDropdown({ onUpdate }) {
           to: r.to,
           updatedAt: r.createdAt
         }))
-        let merged = [...normalizedEdits, ...normalizedReqs].sort((a,b)=> new Date(b.updatedAt) - new Date(a.updatedAt))
+        let merged = [...normalizedEdits, ...normalizedReqs].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
         // Filter out admin-dismissed non-edit items so they don't reappear
         try {
           const raw = localStorage.getItem(getStorageKey())
           const dismissed = new Set(raw ? JSON.parse(raw) : [])
           merged = merged.filter(n => !(n.type !== 'admin_edit' && dismissed.has(n._id)))
-        } catch {}
+        } catch { }
         setNotifications(merged)
         if (!isOpen) setUnreadCount(merged.length)
       } else {
         const data = await getNotifications()
-        setNotifications(data)
-        if (!isOpen) setUnreadCount(Array.isArray(data) ? data.length : 0)
+        // Handle new API response format with requests and systemNotifications
+        let allNotifs = []
+        if (data.requests && data.systemNotifications) {
+          // Normalize requests - filter out ones without proper 'from' data
+          const normalizedReqs = (data.requests || [])
+            .filter(r => r.from && r.from._id) // Only include if from user exists
+            .map(r => ({
+              _id: r._id,
+              type: r.type,
+              from: r.from,
+              to: r.to,
+              updatedAt: r.createdAt,
+              kind: 'request'
+            }))
+          // Normalize system notifications
+          const normalizedSystem = (data.systemNotifications || []).map(n => ({
+            _id: n._id,
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            updatedAt: n.createdAt,
+            kind: 'system'
+          }))
+          allNotifs = [...normalizedSystem, ...normalizedReqs].sort((a,b)=> new Date(b.updatedAt) - new Date(a.updatedAt))
+        } else {
+          // Fallback for old API format
+          allNotifs = Array.isArray(data) ? data.filter(r => r.from && r.from._id).map(r => ({...r, kind: 'request'})) : []
+        }
+        setNotifications(allNotifs)
+        if (!isOpen) setUnreadCount(allNotifs.length)
       }
     } catch (e) {
       console.error('Failed to load notifications:', e)
@@ -71,31 +106,47 @@ export default function NotificationDropdown({ onUpdate }) {
 
   useEffect(() => {
     loadNotifications()
-    // Poll as fallback
-    const interval = setInterval(loadNotifications, 30000)
+    // Poll as fallback (reduced to 60s for better performance)
+    const interval = setInterval(loadNotifications, 60000)
 
     // Real-time updates via socket
     if (user?.id) {
-      socketRef.current = io('http://localhost:5000')
-      const channel = `user:${user.id}`
-      socketRef.current.on(channel, (payload) => {
-        if (!payload || !payload.kind) return
-        // Update list when a photo request lifecycle event occurs
-        if (payload.kind.startsWith('photo:')) {
+      connectSocket(user.id)
+      
+      const unsubUserEvent = onSocketEvent('userEvent', (payload) => {
+        if (payload?.kind?.startsWith('photo:') || payload?.kind?.startsWith('profile:')) {
           loadNotifications()
+          // Show toast for profile approval/rejection
+          if (payload.kind === 'profile:approved') {
+            import('react-toastify').then(({ toast }) => {
+              toast.success('✅ Profile approved by admin!', { position: 'top-center', autoClose: 5000 })
+            })
+          } else if (payload.kind === 'profile:rejected') {
+            import('react-toastify').then(({ toast }) => {
+              toast.error('❌ Profile changes rejected by admin', { position: 'top-center', autoClose: 5000 })
+            })
+          }
         }
       })
-      // Admin-specific: pending profile edit updates
-      if (user?.isAdmin) {
-        socketRef.current.on('admin:pendingEdit', () => {
-          loadNotifications()
-        })
+      
+      const unsubAdminEdit = onSocketEvent('adminPendingEdit', () => {
+        if (user?.isAdmin) loadNotifications()
+      })
+      
+      const unsubAdminRequest = onSocketEvent('adminRequest', () => {
+        if (user?.isAdmin) loadNotifications()
+      })
+      
+      return () => {
+        clearInterval(interval)
+        unsubUserEvent()
+        unsubAdminEdit()
+        unsubAdminRequest()
       }
     }
 
     return () => {
       clearInterval(interval)
-      if (socketRef.current) socketRef.current.disconnect()
     }
   }, [])
 
@@ -135,6 +186,133 @@ export default function NotificationDropdown({ onUpdate }) {
     setLoading(false)
   }
 
+  // If in mobile sheet, render only the content, no button wrapper
+  if (isMobileSheet) {
+    return (
+      <div className="w-full">
+        {notifications.length === 0 ? (
+          <div className="p-6 text-center text-gray-500">
+            <p>No new notifications</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {notifications.map((notif) => (
+              <div
+                key={notif._id}
+                className={`p-4 hover:bg-gray-50 ${user?.isAdmin && notif.type !== 'admin_edit' ? 'cursor-pointer' : ''}`}
+                onClick={() => {
+                  if (user?.isAdmin && notif.type !== 'admin_edit') dismissNotif(notif._id, notif.kind)
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  {notif.kind === 'system' ? (
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                      notif.type === 'profile_approved' ? 'bg-green-100' : 'bg-red-100'
+                    }`}>
+                      <span className="text-2xl">
+                        {notif.type === 'profile_approved' ? '✅' : '❌'}
+                      </span>
+                    </div>
+                  ) : notif.from?.profilePhoto ? (
+                    <img
+                      src={notif.from.profilePhoto}
+                      alt={notif.from.name}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-300 to-purple-400 flex items-center justify-center">
+                      <span className="text-white font-bold text-lg">
+                        {notif.from?.name?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex-1">
+                    {/* System notifications (profile approval/rejection) */}
+                    {notif.kind === 'system' ? (
+                      <>
+                        <p className="font-semibold text-gray-800">{notif.title || 'Notification'}</p>
+                        <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
+                        <button
+                          onClick={() => dismissNotif(notif._id, notif.kind)}
+                          className="mt-2 text-xs text-blue-600 hover:underline"
+                        >
+                          Dismiss
+                        </button>
+                      </>
+                    ) : user?.isAdmin ? (
+                      /* Admin view for requests */
+                      <>
+                        <p className="font-semibold text-gray-800">
+                          {notif.from?.name || 'Unknown'}
+                        </p>
+                        {notif.type === 'admin_edit' ? (
+                          <>
+                            <p className="text-sm text-gray-600 mt-1">submitted profile edits</p>
+                            <div className="flex gap-2 mt-3">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleAdminEdit(notif._id, 'accept') }}
+                                disabled={loading}
+                                className="flex-1 bg-green-500 text-white text-sm py-1.5 rounded-lg hover:bg-green-600 transition disabled:opacity-50"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleAdminEdit(notif._id, 'reject') }}
+                                disabled={loading}
+                                className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-sm text-gray-600 mt-1">
+                            {notif.type === 'photo'
+                              ? `requested access to images of ${notif.to?.name || 'Unknown'}`
+                              : `sent a request to ${notif.to?.name || 'Unknown'}`}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      /* User view for requests */
+                      <>
+                        <p className="font-semibold text-gray-800">{notif.from?.name || notif.from || 'Someone'}</p>
+                        {notif.type === 'photo' ? (
+                          <p className="text-sm text-gray-600 mt-1">requested access to your photos 📸</p>
+                        ) : notif.type === 'chat' || notif.type === 'follow' ? (
+                          <p className="text-sm text-gray-600 mt-1">sent you a {notif.type === 'chat' ? 'chat' : 'follow'} request</p>
+                        ) : (
+                          <p className="text-sm text-gray-600 mt-1">sent you a request</p>
+                        )}
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => handleRespond(notif._id, 'accept')}
+                            disabled={loading}
+                            className="flex-1 bg-green-500 text-white text-sm py-1.5 rounded-lg hover:bg-green-600 transition disabled:opacity-50"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleRespond(notif._id, 'reject')}
+                            disabled={loading}
+                            className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Bell Icon with Badge */}
@@ -166,7 +344,7 @@ export default function NotificationDropdown({ onUpdate }) {
           <div className="p-3 border-b border-gray-200">
             <h3 className="font-semibold text-gray-800">Notifications</h3>
           </div>
-          
+
           {notifications.length === 0 ? (
             <div className="p-6 text-center text-gray-500">
               <p>No new notifications</p>
@@ -179,11 +357,19 @@ export default function NotificationDropdown({ onUpdate }) {
                   className={`p-4 hover:bg-gray-50 ${user?.isAdmin && notif.type !== 'admin_edit' ? 'cursor-pointer' : ''}`}
                   onClick={() => {
                     // Admin: tap to dismiss read-only entries (not for admin_edit)
-                    if (user?.isAdmin && notif.type !== 'admin_edit') dismissNotif(notif._id)
+                    if (user?.isAdmin && notif.type !== 'admin_edit') dismissNotif(notif._id, notif.kind)
                   }}
                 >
                   <div className="flex items-start gap-3">
-                    {notif.from?.profilePhoto ? (
+                    {notif.kind === 'system' ? (
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        notif.type === 'profile_approved' ? 'bg-green-100' : 'bg-red-100'
+                      }`}>
+                        <span className="text-2xl">
+                          {notif.type === 'profile_approved' ? '✅' : '❌'}
+                        </span>
+                      </div>
+                    ) : notif.from?.profilePhoto ? (
                       <img
                         src={notif.from.profilePhoto}
                         alt={notif.from.name}
@@ -196,10 +382,21 @@ export default function NotificationDropdown({ onUpdate }) {
                         </span>
                       </div>
                     )}
-                    
+
                     <div className="flex-1">
-                      {/* Admin: read-only summary of who sent to whom */}
-                      {user?.isAdmin ? (
+                      {/* System notifications (profile approval/rejection) */}
+                      {notif.kind === 'system' ? (
+                        <>
+                          <p className="font-semibold text-gray-800">{notif.title || 'Notification'}</p>
+                          <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); dismissNotif(notif._id, notif.kind) }}
+                            className="mt-2 text-xs text-blue-600 hover:underline"
+                          >
+                            Dismiss
+                          </button>
+                        </>
+                      ) : user?.isAdmin ? (
                         <>
                           <p className="font-semibold text-gray-800">
                             {notif.from?.name || 'Unknown'}
@@ -234,11 +431,13 @@ export default function NotificationDropdown({ onUpdate }) {
                         </>
                       ) : (
                         <>
-                          <p className="font-semibold text-gray-800">{notif.from?.name || 'Unknown'}</p>
+                          <p className="font-semibold text-gray-800">{notif.from?.name || notif.from || 'Someone'}</p>
                           {notif.type === 'photo' ? (
                             <p className="text-sm text-gray-600 mt-1">requested access to your photos 📸</p>
+                          ) : notif.type === 'chat' || notif.type === 'follow' ? (
+                            <p className="text-sm text-gray-600 mt-1">sent you a {notif.type === 'chat' ? 'chat' : 'follow'} request</p>
                           ) : (
-                            <p className="text-sm text-gray-600 mt-1">sent you a follow/chat request</p>
+                            <p className="text-sm text-gray-600 mt-1">sent you a request</p>
                           )}
                           <div className="flex gap-2 mt-3">
                             <button

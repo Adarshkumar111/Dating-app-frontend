@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "react-lazy-load-image-component": "^1.6.3",
+    "workbox-webpack-plugin": "^7.3.0"
+  }
+}

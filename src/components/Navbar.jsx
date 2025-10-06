@@ -5,6 +5,8 @@ import { getFriends } from '../services/userService.js'
 import { requestHelp, getHelpStatus } from '../services/helpService.js'
 import NotificationDropdown from './NotificationDropdown.jsx'
 import { MdMessage, MdMenu, MdClose, MdSettings } from 'react-icons/md'
+import { connectSocket, disconnectSocket, onSocketEvent } from '../services/socketService.js'
+import { toast } from 'react-toastify'
 
 export default function Navbar(){
   const { user, logout } = useAuth()
@@ -73,17 +75,53 @@ export default function Navbar(){
     if (user && !user.isAdmin) {
       loadUnreadCount()
       loadHelpStatus()
-      // Refresh every 10 seconds
+      
+      // Connect socket for real-time updates
+      connectSocket(user.id)
+      
+      // Listen for new messages
+      const unsubMessage = onSocketEvent('newMessage', () => {
+        loadUnreadCount()
+      })
+      
+      // Listen for profile approval/rejection notifications
+      const unsubUserEvent = onSocketEvent('userEvent', (payload) => {
+        if (payload?.kind === 'profile:approved') {
+          toast.success('✅ Great news! Admin approved your profile changes!', {
+            position: 'top-center',
+            autoClose: 5000,
+            hideProgressBar: false
+          })
+          // Refresh user data to show updated profile
+          setTimeout(() => {
+            window.location.reload()
+          }, 2000)
+        } else if (payload?.kind === 'profile:rejected') {
+          const reason = payload.reason ? ` Reason: ${payload.reason}` : ''
+          toast.error(`❌ Your profile changes were rejected by admin.${reason}`, {
+            position: 'top-center',
+            autoClose: 6000,
+            hideProgressBar: false
+          })
+        }
+      })
+      
+      // Refresh every 60 seconds as fallback
       const interval = setInterval(() => {
         loadUnreadCount()
         loadHelpStatus()
-      }, 10000)
+      }, 60000)
+      
       // Listen for on-demand refresh from ChatPage after markAsSeen
       const handler = () => loadUnreadCount()
       window.addEventListener('unread:update', handler)
+      
       return () => {
         clearInterval(interval)
         window.removeEventListener('unread:update', handler)
+        unsubMessage()
+        unsubUserEvent()
+        disconnectSocket()
       }
     }
   }, [user])

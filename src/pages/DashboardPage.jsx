@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { listOpposite, rejectUser, getFriends } from '../services/userService.js';
 import { getEnabledFilters } from '../services/publicService.js';
@@ -22,6 +22,19 @@ export default function DashboardPage() {
   // Filters state
   const [enabledFilters, setEnabledFilters] = useState({ age: true, education: true, occupation: true, nameSearch: true });
   const [filters, setFilters] = useState({ page: 1, ageMin: '', ageMax: '', education: '', occupation: '', name: '' });
+  const [searchDebounce, setSearchDebounce] = useState(null);
+
+  // Debounce search to reduce API calls
+  useEffect(() => {
+    if (searchDebounce) clearTimeout(searchDebounce);
+    const timer = setTimeout(() => {
+      if (tab === 'dashboard' && filters.name) {
+        loadUsers();
+      }
+    }, 500);
+    setSearchDebounce(timer);
+    return () => clearTimeout(timer);
+  }, [filters.name]);
 
   const loadUsers = async () => {
     const query = { page: filters.page };
@@ -162,16 +175,51 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Header hidden as per new design (bottom bar handles nav) */}
+      <div className="max-w-6xl mx-auto px-4 py-6 md:pb-0">
+        {/* Fixed header section on desktop */}
+        <div className="md:sticky md:top-20 md:z-20 md:bg-gray-50 md:pb-4">
+          {/* Header (only on dashboard tab) - hidden on mobile */}
+          {tab === 'dashboard' && (
+            <div className="text-center mb-4 hidden md:block">
+              <h1 className="text-3xl font-bold text-blue-800 mb-2">Welcome to M Nikah</h1>
+              <p className="text-gray-600">Find your perfect match</p>
+            </div>
+          )}
 
-        {/* Tabs UI removed; bottom bar controls navigation */}
-        <div className="flex justify-center gap-3 mb-4 relative">
+          {/* Tabs - hidden on mobile, shown on desktop */}
+          <div className="hidden md:flex justify-center gap-3 mb-8 relative">
+          <button
+            onClick={() => setTab('dashboard')}
+            className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+              tab === 'dashboard' 
+                ? 'bg-premium-gradient text-white shadow-xl' 
+                : 'bg-white text-blue-800 hover:bg-blue-50 shadow-lg border border-blue-200'
+            }`}
+          >
+            🔍 Dashboard
+          </button>
+          <button
+            onClick={() => setTab('friends')}
+            className={`relative px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+              tab === 'friends' 
+                ? 'bg-premium-gradient text-white shadow-xl' 
+                : 'bg-white text-blue-800 hover:bg-blue-50 shadow-lg border border-blue-200'
+            }`}
+            aria-label="Messages"
+          >
+            💬 Messages
+            {unreadTotal > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">
+                {unreadTotal > 5 ? '5+' : unreadTotal}
+              </span>
+            )}
+          </button>
+          {/* Filters button (desktop only, same size as tabs) */}
           {tab === 'dashboard' && (
             <div className="relative">
               <button
                 onClick={() => setShowFilters((s) => !s)}
-                className="px-3 py-2 rounded-xl font-semibold bg-white text-blue-800 shadow border border-blue-200 hover:bg-blue-50 text-sm"
+                className="px-8 py-3 rounded-xl font-semibold bg-white text-blue-800 shadow-lg border border-blue-200 hover:bg-blue-50 transition-all duration-300 transform hover:scale-105"
                 aria-label="Filters"
               >
                 ⚙️ Filters
@@ -206,34 +254,79 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Dashboard Search (below tabs) */}
-        {tab === 'dashboard' && (
-          <div className="mb-4 sticky top-20 z-30">
+        {/* Mobile-only compact filters */}
+        <div className="md:hidden flex justify-center gap-3 mb-4 mt-3 relative">
+          {tab === 'dashboard' && (
             <div className="relative">
-              <div className="flex items-center bg-white border border-blue-200 rounded-xl shadow-sm px-3 py-2">
-                <input
-                  type="text"
-                  placeholder="Search by name..."
-                  value={filters.name}
-                  onChange={(e) => setFilters({ ...filters, name: e.target.value })}
-                  onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
-                  className="flex-1 outline-none text-sm"
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={loadUsers}
-                    className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
-                    aria-label="Search"
-                  >
-                    Search
-                  </button>
+              <button
+                onClick={() => setShowFilters((s) => !s)}
+                className="px-3 py-2 rounded-xl font-semibold bg-white text-blue-800 shadow border border-blue-200 hover:bg-blue-50 text-sm"
+                aria-label="Filters"
+              >
+                ⚙️ Filters
+              </button>
+              {showFilters && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowFilters(false)} />
+                  <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-[85vw] max-w-sm bg-white border border-blue-200 rounded-xl shadow-md p-3 z-50">
+                    <div className="grid grid-cols-1 gap-2">
+                      {enabledFilters.age && (
+                        <div className="flex items-center gap-2">
+                          <input type="number" placeholder="Age min" value={filters.ageMin} onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
+                          <span className="text-gray-500">-</span>
+                          <input type="number" placeholder="Age max" value={filters.ageMax} onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
+                        </div>
+                      )}
+                      {enabledFilters.education && (
+                        <input type="text" placeholder="Education" value={filters.education} onChange={(e) => setFilters({ ...filters, education: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
+                      )}
+                      {enabledFilters.occupation && (
+                        <input type="text" placeholder="Occupation" value={filters.occupation} onChange={(e) => setFilters({ ...filters, occupation: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
+                      )}
+                    </div>
+                    <div className="mt-2 flex gap-2 justify-end">
+                      <button onClick={() => { setShowFilters(false); loadUsers(); }} className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">Apply</button>
+                      <button onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', occupation: '', name: '' }); setShowFilters(false); setLoading(true); loadUsers(); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Reset</button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+          {/* Dashboard Search (below tabs) */}
+          {tab === 'dashboard' && (
+            <div className="fixed md:static top-[86px] md:top-auto left-0 right-0 md:left-auto md:right-auto z-30 px-4 md:px-0 bg-gray-50 pb-2 md:pb-0 mb-0 md:mb-4">
+              <div className="relative">
+                <div className="flex items-center bg-white border border-blue-200 rounded-xl shadow-sm px-3 py-1">
+                  <input
+                    type="text"
+                    placeholder="Search by name..."
+                    value={filters.name}
+                    onChange={(e) => setFilters({ ...filters, name: e.target.value })}
+                    onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
+                    className="flex-1 outline-none text-sm"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={loadUsers}
+                      className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+                      aria-label="Search"
+                    >
+                      Search
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Inline info banner removed; toasts are used instead */}
+        
+        {/* Spacer for fixed search bar - only on mobile */}
+        {tab === 'dashboard' && <div className="h-14 md:h-0"></div>}
         
         {/* dashboard Tab */}
         {tab === 'dashboard' && (
@@ -346,10 +439,10 @@ export default function DashboardPage() {
             </div>
           ) : (
             <>
-              {/* Friends-only search bar (matches dashboard search UI) */}
-              <div className="mb-4 sticky top-20 z-30">
+              {/* Friends-only search bar (matches dashboard search UI) - reduced height */}
+              <div className="fixed md:static top-[86px] md:top-auto left-0 right-0 md:left-auto md:right-auto z-30 px-4 md:px-0 bg-gray-50 pb-2 md:pb-0 mb-0 md:mb-4">
                 <div className="relative">
-                  <div className="flex items-center bg-white border border-blue-200 rounded-xl shadow-sm px-3 py-2">
+                  <div className="flex items-center bg-white border border-blue-200 rounded-xl shadow-sm px-3 py-1">
                     <input
                       type="text"
                       placeholder="Search by name..."
@@ -370,6 +463,8 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
+              {/* Spacer for fixed search bar - only on mobile */}
+              <div className="h-14 md:h-0"></div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
               {filteredFriends.map((friend) => (
                 <div 

@@ -13,44 +13,44 @@ export default function AdminPanelPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Tabs */}
-        <div className="mb-6 flex gap-2 flex-wrap">
+      <div className="max-w-7xl mx-auto px-2 md:px-4 py-4 md:py-8">
+        {/* Tabs - Responsive */}
+        <div className="mb-4 md:mb-6 flex gap-2 flex-wrap">
           <button
             onClick={() => setTab('users')}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${tab === 'users' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition ${tab === 'users' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
           >
             All Users
           </button>
           <button
             onClick={() => setTab('spammers')}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${tab === 'spammers' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition flex items-center gap-1 ${tab === 'spammers' ? 'bg-red-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
           >
-            <MdWarning /> Spammers
+            <MdWarning className="text-lg" /> <span className="hidden sm:inline">Spammers</span><span className="sm:hidden">Spam</span>
           </button>
           <button
             onClick={() => setTab('settings')}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${tab === 'settings' ? 'bg-green-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition flex items-center gap-1 ${tab === 'settings' ? 'bg-green-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
           >
-            <MdSettings /> Settings
+            <MdSettings className="text-lg" /> Settings
           </button>
           <button
             onClick={() => setTab('premium')}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${tab === 'premium' ? 'bg-purple-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition flex items-center gap-1 ${tab === 'premium' ? 'bg-purple-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
           >
-            <MdStar /> Premium Plans
+            <MdStar className="text-lg" /> <span className="hidden sm:inline">Premium Plans</span><span className="sm:hidden">Premium</span>
           </button>
           <button
             onClick={() => setTab('payments')}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${tab === 'payments' ? 'bg-green-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition flex items-center gap-1 ${tab === 'payments' ? 'bg-green-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
           >
-            <MdPayment /> Payments
+            <MdPayment className="text-lg" /> Payments
           </button>
           <button
             onClick={() => setTab('edits')}
-            className={`px-6 py-3 rounded-lg font-semibold transition ${tab === 'edits' ? 'bg-orange-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition ${tab === 'edits' ? 'bg-orange-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
           >
-            📝 Profile Edits
+            📝 <span className="hidden sm:inline">Profile </span>Edits
           </button>
         </div>
 
