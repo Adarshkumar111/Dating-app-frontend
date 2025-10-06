@@ -24,3 +24,7 @@ export const initializeDefaultData = async () => (await api.post('/admin/initial
 
 // Payments stats
 export const getPaymentStats = async () => (await api.get('/admin/payments/stats')).data
+
+// App Settings (comprehensive)
+export const getAppSettings = async () => (await api.get('/admin/app-settings')).data
+export const updateAppSettings = async (settings) => (await api.put('/admin/app-settings', settings)).data

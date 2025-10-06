@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { listOpposite, rejectUser, getFriends } from '../services/userService.js';
+import { getEnabledFilters } from '../services/publicService.js';
 import { sendRequest, unfollow, cancelRequest } from '../services/requestService.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BsChatDots } from 'react-icons/bs';
@@ -14,8 +15,18 @@ export default function DashboardPage() {
   const [info, setInfo] = useState('');
   const navigate = useNavigate();
 
+  // Filters state
+  const [enabledFilters, setEnabledFilters] = useState({ age: true, education: true, occupation: true, nameSearch: true });
+  const [filters, setFilters] = useState({ page: 1, ageMin: '', ageMax: '', education: '', occupation: '', name: '' });
+
   const loadUsers = async () => {
-    const res = await listOpposite();
+    const query = { page: filters.page };
+    if (filters.ageMin) query.ageMin = filters.ageMin;
+    if (filters.ageMax) query.ageMax = filters.ageMax;
+    if (filters.education) query.education = filters.education;
+    if (filters.occupation) query.occupation = filters.occupation;
+    if (filters.name) query.name = filters.name;
+    const res = await listOpposite(query);
     setUsers(res.items || []);
     setLoading(false);
   };
@@ -45,6 +56,18 @@ export default function DashboardPage() {
     
     return () => clearInterval(interval);
   }, [tab]);
+
+  // Load enabled filters once
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getEnabledFilters();
+        if (data?.enabledFilters) setEnabledFilters(data.enabledFilters);
+      } catch (e) {
+        // Ignore failure, keep defaults
+      }
+    })();
+  }, []);
 
   // Keep URL query param in sync with selected tab
   useEffect(() => {
@@ -122,6 +145,73 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold text-blue-800 mb-2">Welcome to M Nikah</h1>
           <p className="text-gray-600">Discover your perfect match</p>
         </div>
+
+        {/* Filter Bar (Discover only) */}
+        {tab === 'discover' && (
+          <div className="mb-6 bg-white border border-blue-100 rounded-xl p-4 shadow-sm">
+            <h3 className="text-lg font-semibold text-blue-800 mb-3">Filters</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {enabledFilters.age && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    placeholder="Age min"
+                    value={filters.ageMin}
+                    onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                  <span className="text-gray-500">-</span>
+                  <input
+                    type="number"
+                    placeholder="Age max"
+                    value={filters.ageMax}
+                    onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              )}
+
+              {enabledFilters.education && (
+                <input
+                  type="text"
+                  placeholder="Education"
+                  value={filters.education}
+                  onChange={(e) => setFilters({ ...filters, education: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              )}
+
+              {enabledFilters.occupation && (
+                <input
+                  type="text"
+                  placeholder="Occupation"
+                  value={filters.occupation}
+                  onChange={(e) => setFilters({ ...filters, occupation: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              )}
+
+              {enabledFilters.nameSearch && (
+                <input
+                  type="text"
+                  placeholder="Search by Name"
+                  value={filters.name}
+                  onChange={(e) => setFilters({ ...filters, name: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              )}
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button onClick={loadUsers} className="btn-primary">Apply Filters</button>
+              <button
+                onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', occupation: '', name: '' }); setLoading(true); loadUsers(); }}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex justify-center gap-4 mb-8">

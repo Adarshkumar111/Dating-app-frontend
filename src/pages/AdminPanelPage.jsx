@@ -13,7 +13,9 @@ import {
   deletePremiumPlan, 
   initializeDefaultData,
   getSettings, // Added for loadSettings
-  getPremiumPlans // Added for loadPremiumPlans
+  getPremiumPlans, // Added for loadPremiumPlans
+  getAppSettings,
+  updateAppSettings
 } from '../services/adminService.js';
 import { MdWarning, MdSearch, MdVisibility, MdDelete, MdCheckCircle, MdSettings, MdStar, MdAdd, MdEdit, MdPayment } from 'react-icons/md';
 
@@ -34,6 +36,7 @@ export default function AdminPanelPage() {
     freeUserRequestLimit: 2,
     premiumUserRequestLimit: 20,
   });
+  const [appSettings, setAppSettings] = useState({ enabledFilters: { age: true, education: true, occupation: true, nameSearch: true } });
   const [premiumPlans, setPremiumPlans] = useState([]);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
@@ -50,6 +53,7 @@ export default function AdminPanelPage() {
     loadUsers();
     loadSpammers();
     loadSettings();
+    loadAppSettings();
     loadPremiumPlans();
     loadPaymentStats();
   }, []);
@@ -71,6 +75,18 @@ export default function AdminPanelPage() {
       setGenderCounts(counts);
     } catch (e) {
       setInfo('Failed to load users: ' + (e.response?.data?.message || e.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAppSettings = async () => {
+    try {
+      setLoading(true);
+      const data = await getAppSettings();
+      setAppSettings(data);
+    } catch (e) {
+      setInfo('Failed to load app settings: ' + (e.response?.data?.message || e.message));
     } finally {
       setLoading(false);
     }
@@ -186,6 +202,15 @@ export default function AdminPanelPage() {
       setInfo('Settings updated successfully');
     } catch (e) {
       setInfo('Failed to update settings: ' + (e.response?.data?.message || e.message));
+    }
+  };
+
+  const handleFilterControlsSave = async () => {
+    try {
+      await updateAppSettings({ enabledFilters: appSettings.enabledFilters });
+      setInfo('Filter controls updated');
+    } catch (e) {
+      setInfo('Failed to update filter controls: ' + (e.response?.data?.message || e.message));
     }
   };
 
@@ -709,6 +734,52 @@ export default function AdminPanelPage() {
             >
               Save Settings
             </button>
+
+            {/* Filter Controls */}
+            <div className="mt-10 border-t pt-6">
+              <h3 className="text-2xl font-bold mb-4 text-gray-800">Filter Controls</h3>
+              <p className="text-sm text-gray-500 mb-4">Toggle which filters appear on the user dashboard.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <label className="flex items-center gap-2 p-3 border rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={!!appSettings.enabledFilters?.age}
+                    onChange={(e) => setAppSettings({ ...appSettings, enabledFilters: { ...appSettings.enabledFilters, age: e.target.checked } })}
+                  />
+                  <span>Age</span>
+                </label>
+                <label className="flex items-center gap-2 p-3 border rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={!!appSettings.enabledFilters?.education}
+                    onChange={(e) => setAppSettings({ ...appSettings, enabledFilters: { ...appSettings.enabledFilters, education: e.target.checked } })}
+                  />
+                  <span>Education</span>
+                </label>
+                <label className="flex items-center gap-2 p-3 border rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={!!appSettings.enabledFilters?.occupation}
+                    onChange={(e) => setAppSettings({ ...appSettings, enabledFilters: { ...appSettings.enabledFilters, occupation: e.target.checked } })}
+                  />
+                  <span>Occupation</span>
+                </label>
+                <label className="flex items-center gap-2 p-3 border rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={!!appSettings.enabledFilters?.nameSearch}
+                    onChange={(e) => setAppSettings({ ...appSettings, enabledFilters: { ...appSettings.enabledFilters, nameSearch: e.target.checked } })}
+                  />
+                  <span>Name Search</span>
+                </label>
+              </div>
+              <button
+                onClick={handleFilterControlsSave}
+                className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+              >
+                Save Filter Controls
+              </button>
+            </div>
           </div>
         )}
 

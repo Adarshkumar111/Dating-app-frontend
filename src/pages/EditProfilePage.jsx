@@ -11,12 +11,32 @@ export default function EditProfilePage() {
     name: '', fatherName: '', motherName: '', age: '', location: '', education: '', occupation: '', about: ''
   })
   const [profilePhoto, setProfilePhoto] = useState(null)
-  const [galleryImages, setGalleryImages] = useState([])
+  // 8-slot files, index = slot number (0..7)
+  const [slotFiles, setSlotFiles] = useState(Array(8).fill(null))
   const [existingGallery, setExistingGallery] = useState([])
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [loading, setLoading] = useState(false)
   const [info, setInfo] = useState('')
   const [tab, setTab] = useState('profile')
+
+  // Per-slot selection
+  const handleSelectSlot = (idx, file) => {
+    setSlotFiles(prev => {
+      const next = [...prev]
+      next[idx] = file || null
+      return next
+    })
+  }
+  const clearSlot = (idx) => handleSelectSlot(idx, null)
+
+  // Slot data for UI: prefer selected file preview; else show existingGallery[idx]
+  const slotViews = Array.from({ length: 8 }).map((_, i) => {
+    const file = slotFiles[i]
+    if (file) return { kind: 'new', previewUrl: URL.createObjectURL(file) }
+    const url = existingGallery[i]
+    if (url) return { kind: 'existing', url }
+    return null
+  })
 
   useEffect(() => {
     (async () => {
@@ -45,13 +65,13 @@ export default function EditProfilePage() {
       const fd = new FormData()
       Object.entries(form).forEach(([k, v]) => fd.append(k, v))
       if (profilePhoto) fd.append('profilePhoto', profilePhoto)
-      galleryImages.forEach(img => fd.append('galleryImages', img))
+      // Send all selected files in slot order; use replace mode
+      slotFiles.forEach(f => { if (f) fd.append('galleryImages', f) })
+      fd.append('replaceGallery', 'true')
       
       const res = await updateProfile(fd)
-      setInfo('Profile updated successfully!')
-      setUser({ ...currentUser, ...res.user })
+      setInfo(res?.message || 'Edits submitted for admin approval')
       setLoading(false)
-      setTimeout(() => nav(`/profile/${currentUser.id}`), 1500)
     } catch (error) {
       setLoading(false)
       setInfo(error.response?.data?.message || 'Update failed')
@@ -131,37 +151,43 @@ export default function EditProfilePage() {
           </div>
 
           <div>
-            <label className="font-medium text-gray-700 block mb-2">Gallery Images (up to 8):</label>
-            <input
-              type="file"
-              accept="image/jpeg,image/jpg,image/png,image/webp"
-              multiple
-              onChange={(e) => setGalleryImages(Array.from(e.target.files || []).slice(0, 8))}
-              className="w-full border border-gray-300 rounded-lg p-3"
-            />
-            <p className="text-sm text-gray-500 mt-1">Selected: {galleryImages.length} images</p>
-          </div>
-
-          {/* Existing Gallery */}
-          {existingGallery.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-gray-800 mb-2">Current Gallery:</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {existingGallery.map((img, idx) => (
-                  <div key={idx} className="relative">
-                    <img src={img} alt={`gallery-${idx}`} className="w-full h-24 object-cover rounded-lg" />
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteImage(img)}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs hover:bg-red-600"
-                    >
-                      ✕
-                    </button>
+            <label className="font-medium text-gray-700 block mb-2">Gallery Photos (8 slots):</label>
+            <div className="grid grid-cols-3 gap-3">
+              {Array.from({ length: 8 }).map((_, i) => {
+                const item = slotViews[i]
+                const isPrimary = i === 0
+                return (
+                  <div key={i} className="relative group">
+                    <label className="block w-full h-24 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 cursor-pointer">
+                      {item ? (
+                        <img src={item.kind === 'existing' ? item.url : item.previewUrl} alt={`slot-${i+1}`} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">Empty</div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => handleSelectSlot(i, e.target.files?.[0] || null)}
+                      />
+                    </label>
+                    <span className={`absolute top-1 left-1 text-[10px] px-2 py-0.5 rounded-full ${isPrimary ? 'bg-pink-500 text-white' : 'bg-white/90 text-gray-700'}`}>{isPrimary ? 'Primary' : `#${i+1}`}</span>
+                    {item && (
+                      <button
+                        type="button"
+                        onClick={() => (item.kind === 'existing' ? handleDeleteImage(item.url) : clearSlot(i))}
+                        className="absolute top-1 right-1 bg-gray-900/70 text-white rounded-full w-6 h-6 text-xs hover:bg-black"
+                        title="Remove"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
-                ))}
-              </div>
+                )
+              })}
             </div>
-          )}
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded mt-2 p-2">On save, gallery will be replaced by the selected files in slot order. Leave a slot empty to omit that position.</p>
+          </div>
 
           <button disabled={loading} type='submit' className={`w-full bg-pink-500 text-white font-semibold py-3 rounded-lg hover:bg-pink-600 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
             {loading ? 'Updating...' : 'Update Profile'}
