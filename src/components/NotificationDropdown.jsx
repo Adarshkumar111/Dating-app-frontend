@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { getNotifications, markAsRead } from '../services/notificationService.js'
 import { respondToRequest } from '../services/requestService.js'
+import { respondHelpRequest } from '../services/helpService.js'
 import { getPendingProfileEdits, approveProfileEditApi, rejectProfileEditApi } from '../services/adminService.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { connectSocket, onSocketEvent } from '../services/socketService.js'
@@ -88,6 +89,7 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
             type: n.type,
             title: n.title,
             message: n.message,
+            dataKind: n.data?.kind,
             updatedAt: n.createdAt,
             kind: 'system'
           }))
@@ -114,18 +116,38 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
       connectSocket(user.id)
       
       const unsubUserEvent = onSocketEvent('userEvent', (payload) => {
-        if (payload?.kind?.startsWith('photo:') || payload?.kind?.startsWith('profile:')) {
+        if (!payload?.kind) return
+        // Always refresh on relevant events
+        if (
+          payload.kind.startsWith('photo:') ||
+          payload.kind.startsWith('profile:') ||
+          payload.kind.startsWith('request:help:')
+        ) {
           loadNotifications()
-          // Show toast for profile approval/rejection
-          if (payload.kind === 'profile:approved') {
-            import('react-toastify').then(({ toast }) => {
-              toast.success('✅ Profile approved by admin!', { position: 'top-center', autoClose: 5000 })
-            })
-          } else if (payload.kind === 'profile:rejected') {
-            import('react-toastify').then(({ toast }) => {
-              toast.error('❌ Profile changes rejected by admin', { position: 'top-center', autoClose: 5000 })
-            })
-          }
+        }
+        // Profile toasts
+        if (payload.kind === 'profile:approved') {
+          import('react-toastify').then(({ toast }) => {
+            toast.success('✅ Profile approved by admin!', { position: 'top-center', autoClose: 5000 })
+          })
+        } else if (payload.kind === 'profile:rejected') {
+          import('react-toastify').then(({ toast }) => {
+            toast.error('❌ Profile changes rejected by admin', { position: 'top-center', autoClose: 5000 })
+          })
+        }
+        // Help request toasts
+        if (payload.kind === 'request:help:approved') {
+          import('react-toastify').then(({ toast }) => {
+            toast.success('✅ Help request approved. You can chat with admin now.', { position: 'top-center', autoClose: 5000 })
+          })
+        } else if (payload.kind === 'request:help:rejected') {
+          import('react-toastify').then(({ toast }) => {
+            toast.error('❌ Help request rejected by admin.', { position: 'top-center', autoClose: 5000 })
+          })
+        } else if (payload.kind === 'request:help:resolved') {
+          import('react-toastify').then(({ toast }) => {
+            toast.info('ℹ️ Your help query was resolved. Chat is closed.', { position: 'top-center', autoClose: 5000 })
+          })
         }
       })
       
@@ -214,21 +236,20 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
               >
                 <div className="flex items-start gap-3">
                   {notif.kind === 'system' ? (
-                    notif.relatedUser?.profilePhoto ? (
-                      <img
-                        src={notif.relatedUser.profilePhoto}
-                        alt={notif.relatedUser.name}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        notif.type === 'profile_approved' || notif.type === 'request_accepted' ? 'bg-green-100' : 'bg-red-100'
-                      }`}>
-                        <span className="text-2xl">
-                          {notif.type === 'profile_approved' || notif.type === 'request_accepted' ? '✅' : '❌'}
-                        </span>
-                      </div>
-                    )
+                    (() => {
+                      const isAccepted = (
+                        notif.type === 'profile_approved' ||
+                        notif.dataKind === 'request_accepted' ||
+                        notif.dataKind === 'request_resolved'
+                      )
+                      const bg = isAccepted ? 'bg-green-100' : 'bg-red-100'
+                      const icon = isAccepted ? '✅' : '❌'
+                      return (
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${bg}`}>
+                          <span className="text-2xl">{icon}</span>
+                        </div>
+                      )
+                    })()
                   ) : notif.from?.profilePhoto ? (
                     <img
                       src={notif.from.profilePhoto}
@@ -275,6 +296,40 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleAdminEdit(notif._id, 'reject') }}
+                                disabled={loading}
+                                className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </>
+                        ) : notif.type === 'help' ? (
+                          <>
+                            <p className="text-sm text-gray-600 mt-1">requested help</p>
+                            <div className="flex gap-2 mt-3">
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation()
+                                  try {
+                                    await respondHelpRequest({ helpRequestId: notif._id, action: 'approve' })
+                                    await loadNotifications()
+                                    // Optionally jump straight to chat with the requester
+                                    if (notif.from?._id) window.location.href = `/chat/${notif.from._id}`
+                                  } catch (err) { console.error(err) }
+                                }}
+                                disabled={loading}
+                                className="flex-1 bg-green-500 text-white text-sm py-1.5 rounded-lg hover:bg-green-600 transition disabled:opacity-50"
+                              >
+                                Approve & Chat
+                              </button>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation()
+                                  try {
+                                    await respondHelpRequest({ helpRequestId: notif._id, action: 'reject' })
+                                    await loadNotifications()
+                                  } catch (err) { console.error(err) }
+                                }}
                                 disabled={loading}
                                 className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
                               >
@@ -379,13 +434,20 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
                 >
                   <div className="flex items-start gap-3">
                     {notif.kind === 'system' ? (
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        notif.type === 'profile_approved' ? 'bg-green-100' : 'bg-red-100'
-                      }`}>
-                        <span className="text-2xl">
-                          {notif.type === 'profile_approved' ? '✅' : '❌'}
-                        </span>
-                      </div>
+                      (() => {
+                        const isAccepted = (
+                          notif.type === 'profile_approved' ||
+                          notif.dataKind === 'request_accepted' ||
+                          notif.dataKind === 'request_resolved'
+                        )
+                        const bg = isAccepted ? 'bg-green-100' : 'bg-red-100'
+                        const icon = isAccepted ? '✅' : '❌'
+                        return (
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${bg}`}>
+                            <span className="text-2xl">{icon}</span>
+                          </div>
+                        )
+                      })()
                     ) : notif.from?.profilePhoto ? (
                       <img
                         src={notif.from.profilePhoto}
@@ -431,6 +493,39 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
                                 </button>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleAdminEdit(notif._id, 'reject') }}
+                                  disabled={loading}
+                                  className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </>
+                          ) : notif.type === 'help' ? (
+                            <>
+                              <p className="text-sm text-gray-600 mt-1">requested help</p>
+                              <div className="flex gap-2 mt-3">
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation()
+                                    try {
+                                      await respondHelpRequest({ helpRequestId: notif._id, action: 'approve' })
+                                      await loadNotifications()
+                                      if (notif.from?._id) window.location.href = `/chat/${notif.from._id}`
+                                    } catch (err) { console.error(err) }
+                                  }}
+                                  disabled={loading}
+                                  className="flex-1 bg-green-500 text-white text-sm py-1.5 rounded-lg hover:bg-green-600 transition disabled:opacity-50"
+                                >
+                                  Approve & Chat
+                                </button>
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation()
+                                    try {
+                                      await respondHelpRequest({ helpRequestId: notif._id, action: 'reject' })
+                                      await loadNotifications()
+                                    } catch (err) { console.error(err) }
+                                  }}
                                   disabled={loading}
                                   className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
                                 >

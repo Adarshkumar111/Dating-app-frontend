@@ -45,8 +45,17 @@ export default function MobileBottomBar() {
         const mergedLen = (Array.isArray(reqs) ? reqs.length : 0) + (Array.isArray(edits) ? edits.length : 0)
         setNotifCount(mergedLen)
       } else {
-        const reqs = await getNotifications()
-        setNotifCount(Array.isArray(reqs) ? reqs.length : 0)
+        const data = await getNotifications()
+        if (Array.isArray(data)) {
+          // Backward-compatible (old API returned array)
+          setNotifCount(data.length)
+        } else if (data && typeof data === 'object') {
+          const r = Array.isArray(data.requests) ? data.requests.length : 0
+          const s = Array.isArray(data.systemNotifications) ? data.systemNotifications.length : 0
+          setNotifCount(r + s)
+        } else {
+          setNotifCount(0)
+        }
       }
     } catch (_) {
       // ignore
@@ -231,8 +240,8 @@ export default function MobileBottomBar() {
           <div className="absolute inset-0 bg-black/40" />
           <div className="absolute left-0 right-0 bottom-0 bg-white rounded-t-2xl shadow-2xl animate-slide-up max-h-[70vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-3 border-b border-gray-200 sticky top-0 bg-white z-10">
-              <div className="text-lg font-semibold text-blue-800 flex items-center gap-2">
-                <MdHelp className="text-blue-500" />
+              <div className="text-lg font-semibold text-amber-700 flex items-center gap-2">
+                <MdHelp className="text-amber-600" />
                 Help & Support
               </div>
               <button onClick={() => setOpenHelpSheet(false)} className="p-2 hover:bg-gray-100 rounded-full">

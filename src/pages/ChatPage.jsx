@@ -158,12 +158,10 @@ export default function ChatPage() {
 
                 socketRef.current.on('chatBlocked', ({ blockedBy }) => {
                     setChatData(prev => ({ ...prev, isBlocked: true, blockedBy }))
-                    alert('This chat has been blocked')
                 })
 
                 socketRef.current.on('chatUnblocked', () => {
                     setChatData(prev => ({ ...prev, isBlocked: false, blockedBy: null }))
-                    alert('This chat has been unblocked')
                 })
             }
         } catch (e) {
@@ -429,8 +427,8 @@ export default function ChatPage() {
     if (loading) return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
             <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800 mx-auto mb-4"></div>
-                <p className="text-blue-800 font-medium">Loading chat...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{borderColor: '#B8860B'}}></div>
+                <p className="font-medium" style={{color: '#B8860B'}}>Loading chat...</p>
             </div>
         </div>
     )
@@ -438,7 +436,7 @@ export default function ChatPage() {
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
             <div className="text-center">
                 <div className="text-6xl mb-4">💬</div>
-                <h2 className="text-2xl font-bold text-blue-800 mb-2">Chat Not Found</h2>
+                <h2 className="text-2xl font-bold mb-2" style={{color: '#B8860B'}}>Chat Not Found</h2>
                 <p className="text-gray-600">This conversation doesn't exist or you don't have access to it.</p>
             </div>
         </div>
@@ -447,12 +445,12 @@ export default function ChatPage() {
     const otherUser = getOtherUser()
 
     return (
-        <div className="fixed inset-0 bg-blue-50 px-2 overflow-hidden pt-20 md:pt-24" style={{ overscrollBehavior: 'none' }}>
+        <div className="fixed inset-0 px-2 overflow-hidden pt-20 md:pt-24" style={{ overscrollBehavior: 'none', backgroundColor: '#FFF8E7' }}>
             <div className="max-w-7xl w-full h-full mx-auto bg-white rounded-2xl shadow-md flex flex-col">
             {/* Header */}
-            <div className="bg-blue-500 text-white px-4 py-2 md:py-3 flex items-center gap-3 shadow rounded-t-2xl relative">
+            <div className="px-4 py-2 md:py-3 flex items-center gap-3 shadow rounded-t-2xl relative" style={{backgroundColor: '#F5DEB3', color: '#2C2C2C'}}>
                 <Link to={`/profile/${otherUser?._id}`} className="flex items-center gap-3 hover:opacity-90 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-white text-blue-800 flex items-center justify-center font-bold text-xl shadow-lg">
+                    <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center font-bold text-xl shadow-lg" style={{color: '#B8860B'}}>
                         {otherUser?.profilePhoto ? (
                             <img src={otherUser.profilePhoto} alt="" className="w-12 h-12 rounded-full object-cover" />
                         ) : (
@@ -467,7 +465,7 @@ export default function ChatPage() {
                                 {chatData.isBlockedByMe ? 'You blocked this user' : 'You are blocked'}
                             </div>
                         ) : (
-                            <div className="text-xs md:text-sm text-blue-100">Tap to view profile</div>
+                            <div className="text-xs md:text-sm" style={{color: '#C9A227'}}>Tap to view profile</div>
                         )}
                     </div>
                 </Link>
@@ -557,7 +555,7 @@ export default function ChatPage() {
             )}
 
             {/* Messages */}
-            <div className="flex-1 p-2 md:p-3 overflow-y-auto flex flex-col gap-2 bg-blue-50" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', overscrollBehaviorY: 'contain' }}>
+            <div className="flex-1 p-2 md:p-3 overflow-y-auto flex flex-col gap-2" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', overscrollBehaviorY: 'contain', backgroundColor: '#FFF8E7' }}>
                 {messages.map((m) => {
                     const status = getMessageStatus(m)
                     return (
@@ -566,9 +564,10 @@ export default function ChatPage() {
                             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, message: m }) }}
                             className={`max-w-[78%] md:max-w-[70%] px-3 py-2 md:px-4 md:py-3 rounded-2xl break-words relative group shadow ${
                                 m.fromSelf 
-                                    ? 'self-end bg-blue-500 text-white' 
-                                    : 'self-start bg-white border border-blue-100'
+                                    ? 'self-end' 
+                                    : 'self-start bg-white'
                                 }`}
+                            style={m.fromSelf ? { backgroundColor: '#F5DEB3', color: '#2C2C2C' } : { border: '1px solid #F5DEB3' }}
                         >
                             {m.deletedForEveryone ? (
                                 <div className="flex items-center gap-2 text-gray-500 italic">
@@ -590,7 +589,7 @@ export default function ChatPage() {
                             )}
 
                             {!m.deletedForEveryone && m.reactions?.length > 0 && (
-                                <div className="absolute -bottom-2 right-2 flex gap-1 bg-white rounded-full px-3 py-1 shadow-lg border border-blue-100">
+                                <div className="absolute -bottom-2 right-2 flex gap-1 bg-white rounded-full px-3 py-1 shadow-lg" style={{border: '1px solid #F5DEB3'}}>
                                     {m.reactions.map((r, idx) => <span key={idx} className="text-lg">{r.emoji}</span>)}
                                 </div>
                             )}
@@ -598,18 +597,19 @@ export default function ChatPage() {
                             {!m.deletedForEveryone && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setReactionMenu({ x: e.clientX, y: e.clientY, message: m }) }}
-                                    className="absolute -top-2 right-2 opacity-0 group-hover:opacity-100 bg-white rounded-full p-2 shadow-lg border border-blue-100 hover:scale-110 transition-all duration-300"
+                                    className="absolute -top-2 right-2 opacity-0 group-hover:opacity-100 bg-white rounded-full p-2 shadow-lg hover:scale-110 transition-all duration-300"
+                                    style={{border: '1px solid #F5DEB3'}}
                                 >
                                     😊
                                 </button>
                             )}
 
-                            <div className={`text-[10px] md:text-xs mt-1 md:mt-2 flex items-center gap-1 ${m.fromSelf ? 'text-blue-100' : 'text-gray-500'}`}>
+                            <div className={`text-[10px] md:text-xs mt-1 md:mt-2 flex items-center gap-1 ${m.fromSelf ? '' : 'text-gray-500'}`} style={m.fromSelf ? {color: '#C9A227'} : {}}>
                                 <span>{new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                 {status && (
                                     <>
                                         {status.icon}
-                                        {status.text && <span className="text-blue-400 font-medium">{status.text}</span>}
+                                        {status.text && <span className="font-medium" style={{color: '#DAA520'}}>{status.text}</span>}
                                     </>
                                 )}
                             </div>
@@ -640,9 +640,12 @@ export default function ChatPage() {
             {reactionMenu && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setReactionMenu(null)} />
-                    <div className="fixed z-50 bg-white border border-blue-100 rounded-full shadow-2xl px-4 py-3 flex gap-3" style={{ top: reactionMenu.y - 50, left: reactionMenu.x - 100 }}>
+                    <div className="fixed z-50 bg-white rounded-full shadow-2xl px-4 py-3 flex gap-3" style={{ top: reactionMenu.y - 50, left: reactionMenu.x - 100, border: '1px solid #F5DEB3' }}>
                         {['❤️', '😂', '😮', '😢', '🙏', '👍'].map(emoji => (
-                            <button key={emoji} onClick={() => handleReaction(reactionMenu.message._id, emoji)} className="text-2xl hover:scale-125 transition-all duration-300 hover:bg-blue-50 rounded-full p-1">
+                            <button key={emoji} onClick={() => handleReaction(reactionMenu.message._id, emoji)} className="text-2xl hover:scale-125 transition-all duration-300 rounded-full p-1"
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FFF8E7'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
                                 {emoji}
                             </button>
                         ))}
@@ -698,7 +701,7 @@ export default function ChatPage() {
             )}
 
             {/* Input */}
-            <div className="p-3 md:p-4 border-t border-blue-100 bg-white shadow rounded-b-2xl sticky bottom-0">
+            <div className="p-3 md:p-4 bg-white shadow rounded-b-2xl sticky bottom-0" style={{ borderTop: '1px solid #F5DEB3' }}>
                 {(chatData?.isBlockedByMe || chatData?.isBlockedByThem) && (
                     <div className="mb-4 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl">
                         <div className="flex items-center justify-between">
@@ -729,8 +732,8 @@ export default function ChatPage() {
                     </div>
                 )}
 
-                {uploading && <div className="mb-3 text-sm text-blue-800 flex items-center gap-2 bg-blue-50 p-3 rounded-lg">
-                    <div className="w-4 h-4 border-2 border-blue-800 border-t-transparent rounded-full animate-spin"></div>
+                {uploading && <div className="mb-3 text-sm flex items-center gap-2 p-3 rounded-lg" style={{ backgroundColor: '#FFF8E7', color: '#B8860B' }}>
+                    <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#B8860B' }}></div>
                     <span className="font-medium">Uploading media...</span>
                 </div>}
 
@@ -739,15 +742,18 @@ export default function ChatPage() {
                     <input ref={videoInputRef} type="file" accept="video/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'video')} className="hidden" />
 
                     <div className="relative">
-                        <button type="button" onClick={() => setShowMediaMenu(!showMediaMenu)} disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300">
+                        <button type="button" onClick={() => setShowMediaMenu(!showMediaMenu)} disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300" style={{ color: '#B8860B' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#FFF8E7')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
                             <IoMdAdd className="text-2xl" />
                         </button>
                         {showMediaMenu && (
                             <>
                                 <div className="fixed inset-0 z-30" onClick={() => setShowMediaMenu(false)} />
-                                <div className="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-2xl border border-blue-100 py-2 min-w-[200px] z-40">
+                                <div className="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-2xl py-2 min-w-[200px] z-40" style={{ border: '1px solid #F5DEB3' }}>
                                     <button onClick={() => openCamera('photo')} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100 text-left">
-                                        <MdCamera className="text-xl text-blue-500" />
+                                        <MdCamera className="text-xl" style={{ color: '#B8860B' }} />
                                         <span className="text-sm font-medium">Camera</span>
                                     </button>
                                     <button onClick={() => { fileInputRef.current?.click(); setShowMediaMenu(false) }} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-100 text-left">
@@ -765,13 +771,19 @@ export default function ChatPage() {
                             onChange={e => setText(e.target.value)}
                             placeholder={(chatData?.isBlockedByMe || chatData?.isBlockedByThem) ? "Cannot send messages" : "Type a message..."}
                             disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem}
-                            className="w-full pr-12 pl-4 py-2 md:py-2.5 rounded-full border-2 border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
+                            className="w-full pr-12 pl-4 py-2 md:py-2.5 rounded-full border-2 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
+                            style={{ borderColor: '#D4AF37' }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = '#B8860B')}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = '#D4AF37')}
                         />
                         <button
                             type="button"
                             onClick={onSend}
                             disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem}
-                            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 text-white rounded-full disabled:opacity-30 disabled:cursor-not-allowed"
+                            style={{ backgroundColor: '#B8860B' }}
+                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#A87300')}
+                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#B8860B')}
                             aria-label="Send"
                         >
                             <MdSend className="text-lg" />

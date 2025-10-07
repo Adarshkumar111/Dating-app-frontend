@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
 export default function HelpDropdown({ isMobileSheet, onClose }) {
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [helpStatus, setHelpStatus] = useState({ state: 'none', adminId: null })
+  const [helpStatus, setHelpStatus] = useState({ state: 'none', adminId: null, id: null })
   const [issueType, setIssueType] = useState('')
   const [issueDescription, setIssueDescription] = useState('')
   const dropdownRef = useRef(null)
@@ -17,7 +17,13 @@ export default function HelpDropdown({ isMobileSheet, onClose }) {
     try {
       const data = await getHelpStatus()
       if (data?.status) {
-        setHelpStatus({ state: data.status, adminId: data.adminId || null })
+        const lastShownKey = 'help:lastResolvedShownId'
+        const lastShownId = localStorage.getItem(lastShownKey)
+        // If resolved was already shown once for this request, treat as none
+        const effectiveState = (data.status === 'resolved' && data.id && data.id === lastShownId)
+          ? 'none'
+          : data.status
+        setHelpStatus({ state: effectiveState, adminId: data.adminId || null, id: data.id || null })
       }
     } catch (err) {
       console.error('Failed to load help status:', err)
@@ -27,6 +33,15 @@ export default function HelpDropdown({ isMobileSheet, onClose }) {
   useEffect(() => {
     loadHelpStatus()
   }, [])
+
+  // When showing resolved state, record that it's been shown once so next loads revert to normal Help UI
+  useEffect(() => {
+    if (helpStatus.state === 'resolved' && helpStatus.id) {
+      try {
+        localStorage.setItem('help:lastResolvedShownId', helpStatus.id)
+      } catch {}
+    }
+  }, [helpStatus.state, helpStatus.id])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -48,7 +63,7 @@ export default function HelpDropdown({ isMobileSheet, onClose }) {
     setLoading(true)
     try {
       await requestHelp(issueType, issueDescription)
-      setHelpStatus({ state: 'pending', adminId: null })
+      setHelpStatus({ state: 'pending', adminId: null, id: null })
       toast.success('Help request sent to admin successfully!')
       setIssueType('')
       setIssueDescription('')
@@ -88,6 +103,14 @@ export default function HelpDropdown({ isMobileSheet, onClose }) {
               Chat with Admin
             </button>
           </div>
+        ) : helpStatus.state === 'resolved' ? (
+          <div className="p-6 text-center">
+            <div className="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <span className="text-3xl">✔️</span>
+            </div>
+            <h3 className="font-semibold text-gray-800 mb-2">Query Resolved</h3>
+            <p className="text-sm text-gray-600">Admin marked your help request as resolved. Chat is closed.</p>
+          </div>
         ) : helpStatus.state === 'pending' ? (
           <div className="p-6 text-center">
             <div className="w-16 h-16 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-4">
@@ -107,7 +130,7 @@ export default function HelpDropdown({ isMobileSheet, onClose }) {
                   value={issueType}
                   onChange={(e) => setIssueType(e.target.value)}
                   required
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-gray-700"
                 >
                   <option value="">-- Select Issue --</option>
                   <option value="profile_issue">Profile Issue</option>
@@ -129,14 +152,14 @@ export default function HelpDropdown({ isMobileSheet, onClose }) {
                   onChange={(e) => setIssueDescription(e.target.value)}
                   placeholder="Describe your issue in detail..."
                   rows={3}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700 resize-none"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-gray-700 resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-amber-600 text-white py-3 rounded-lg hover:bg-amber-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Sending...' : 'Submit Help Request'}
               </button>
@@ -175,7 +198,7 @@ export default function HelpDropdown({ isMobileSheet, onClose }) {
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
           <div className="p-3 border-b border-gray-200 flex items-center justify-between">
             <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-              <MdHelp className="text-blue-500" />
+              <MdHelp className="text-amber-600" />
               Help & Support
             </h3>
             <button
@@ -201,6 +224,14 @@ export default function HelpDropdown({ isMobileSheet, onClose }) {
                   Chat with Admin
                 </button>
               </div>
+            ) : helpStatus.state === 'resolved' ? (
+              <div className="p-6 text-center">
+                <div className="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <span className="text-3xl">✔️</span>
+                </div>
+                <h3 className="font-semibold text-gray-800 mb-2">Query Resolved</h3>
+                <p className="text-sm text-gray-600">Admin marked your help request as resolved. Chat is closed.</p>
+              </div>
             ) : helpStatus.state === 'pending' ? (
               <div className="p-6 text-center">
                 <div className="w-16 h-16 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-4">
@@ -220,7 +251,7 @@ export default function HelpDropdown({ isMobileSheet, onClose }) {
                       value={issueType}
                       onChange={(e) => setIssueType(e.target.value)}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
                     >
                       <option value="">-- Select Issue --</option>
                       <option value="profile_issue">Profile Issue</option>
@@ -242,14 +273,14 @@ export default function HelpDropdown({ isMobileSheet, onClose }) {
                       onChange={(e) => setIssueDescription(e.target.value)}
                       placeholder="Describe your issue..."
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm resize-none"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-blue-500 text-white py-2.5 rounded-lg hover:bg-blue-600 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-amber-600 text-white py-2.5 rounded-lg hover:bg-amber-700 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Sending...' : 'Submit Help Request'}
                   </button>

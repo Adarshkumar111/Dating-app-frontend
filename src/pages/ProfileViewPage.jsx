@@ -222,6 +222,7 @@ export default function ProfileViewPage() {
     try {
       await sendRequest({ toUserId: id, type: 'photo' })
       setInfo('Photo access request sent!')
+      try { toast.success('📸 Photo access request sent!', { autoClose: 2500 }) } catch {}
       loadProfile()
     } catch (e) {
       setInfo(e.response?.data?.message || 'Failed to send photo request')
@@ -231,16 +232,16 @@ export default function ProfileViewPage() {
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800 mx-auto mb-4"></div>
-        <p className="text-blue-800 font-medium">Loading profile...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{borderColor:'#B8860B'}}></div>
+        <p className="font-medium" style={{color:'#B8860B'}}>Loading profile...</p>
       </div>
     </div>
   )
   if (!profile) return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="text-center">
-        <MdPerson className="text-6xl text-blue-600 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-blue-800 mb-2">Profile Not Found</h2>
+        <MdPerson className="text-6xl mx-auto mb-4" style={{color:'#B8860B'}} />
+        <h2 className="text-2xl font-bold mb-2" style={{color:'#B8860B'}}>Profile Not Found</h2>
         <p className="text-gray-600">This profile doesn't exist or you don't have access to it.</p>
       </div>
     </div>
@@ -250,24 +251,28 @@ export default function ProfileViewPage() {
   const isAdmin = currentUser?.isAdmin
 
   return (
-    <div className="min-h-screen bg-blue-50 py-6 px-3">
+    <div className='h-full ' style={{backgroundColor:'#FFF8E7'}}>
+      
+      <div>
+      <div className="min-h-screen py-6 px-3  " >
       <div className="max-w-3xl mx-auto">
         {isAdmin && !isOwnProfile && (
-          <div className="mb-6 p-4 bg-white text-blue-800 rounded-xl border border-blue-200 shadow-md flex items-center justify-between">
+          <div className="mb-6 p-4 bg-white rounded-xl shadow-md flex items-center justify-between" style={{border:'1px solid #F5DEB3', color:'#2C2C2C'}}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white" style={{backgroundColor:'#B8860B'}}>
                 <MdSecurity className="text-xl" />
               </div>
               <div>
-                <span className="font-semibold text-lg">Admin View</span>
-                <p className="text-sm text-blue-600">Full profile visible (read-only)</p>
+                <span className="font-semibold text-lg" style={{color:'#B8860B'}}>Admin View</span>
+                <p className="text-sm" style={{color:'#C9A227'}}>Full profile visible (read-only)</p>
               </div>
             </div>
           {/* Admin Menu */}
           <div className="relative">
             <button
               onClick={() => setShowAdminMenu(!showAdminMenu)}
-              className="p-2 hover:bg-blue-100 rounded-full transition"
+              className="p-2 rounded-full transition"
+              style={{color:'#B8860B'}}
             >
               <MdMoreVert className="text-xl" />
             </button>
@@ -299,57 +304,61 @@ export default function ProfileViewPage() {
         </div>
       )}
         {info && (
-          <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-200 shadow-md">
+          <div className="mb-6 p-4 rounded-xl shadow-md" style={{backgroundColor:'#FFF8E7', color:'#B8860B', border:'1px solid #F5DEB3'}}>
             {info}
           </div>
         )}
         
         {/* Profile Header Card */}
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden mb-6 border border-blue-100">
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden mb-6" style={{border:'1px solid #F5DEB3'}}>
           {/* Cover Background */}
-          <div className="h-36 bg-gradient-to-r from-blue-700 to-blue-500 relative rounded-t-3xl">
-            <div className="absolute inset-0 bg-blue-500"></div>
+          <div className="h-36 relative rounded-t-3xl" style={{background:'linear-gradient(90deg, #C9A227, #F5DEB3)'}}>
+            <div className="absolute inset-0" style={{backgroundColor:'#F5DEB3', opacity:0.1}}></div>
           </div>
           
           {/* Profile Content */}
           <div className="relative px-8 pb-8">
             {/* Profile Photo */}
-            <div className="flex justify-center -mt-14 mb-4">
-              {profile.profilePhoto ? (
-                <img
-                  src={transformUrl(profile.profilePhoto)}
-                  onError={handleImgError}
-                  onClick={() => openLightbox(transformUrl(profile.profilePhoto))}
-                  alt="profile"
-                  className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-md cursor-zoom-in ring-2 ring-white/60"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-premium-gradient flex items-center justify-center border-2 border-white shadow-md">
-                  <span className="text-2xl font-bold text-white">{profile.name?.[0]?.toUpperCase() || '?'}</span>
-                </div>
-              )}
-            </div>
+            {showField('profilePhoto') && (
+              <div className="flex justify-center -mt-14 mb-4">
+                {profile.profilePhoto ? (
+                  <img
+                    src={transformUrl(profile.profilePhoto)}
+                    onError={handleImgError}
+                    onClick={() => openLightbox(transformUrl(profile.profilePhoto))}
+                    alt="profile"
+                    className="w-20 h-20 rounded-full object-cover border-2 border-white shadow-md cursor-zoom-in ring-2 ring-white/60"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-premium-gradient flex items-center justify-center border-2 border-white shadow-md">
+                    <span className="text-2xl font-bold text-white">{profile.name?.[0]?.toUpperCase() || '?'}</span>
+                  </div>
+                )}
+              </div>
+            )}
             
             {/* Profile Info */}
             <div className="text-center">
-              <h1 className="text-2xl font-bold text-blue-800 mb-1">{profile.name}</h1>
-              {profile.location && (
+              {showField('name') && (
+                <h1 className="text-2xl font-bold mb-1" style={{color:'#B8860B'}}>{profile.name}</h1>
+              )}
+              {profile.location && showField('location') && (
                 <div className="flex items-center justify-center gap-2 text-gray-600 mb-3">
-                  <MdLocationOn className="text-blue-500" />
+                  <MdLocationOn style={{color:'#B8860B'}} />
                   <span className="text-lg">{profile.location}</span>
                 </div>
               )}
               
               {/* Basic Info Pills */}
               <div className="flex flex-wrap justify-center gap-2.5 mb-4">
-                {profile.age && (
-                  <span className="px-3.5 py-1 bg-blue-50 text-blue-800 rounded-full text-xs font-semibold shadow-sm border border-blue-200">
+                {profile.age && showField('age') && (
+                  <span className="px-3.5 py-1 rounded-full text-xs font-semibold shadow-sm" style={{backgroundColor:'#FFF8E7', color:'#B8860B', border:'1px solid #F5DEB3'}}>
                     {profile.age} years old
                   </span>
                 )}
                 {profile.gender && (
-                  <span className="px-3.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 flex items-center gap-1.5 shadow-sm border border-blue-200">
-                    {profile.gender === 'male' ? <MdMale className="text-blue-700" /> : <MdFemale className="text-pink-600" />}
+                  <span className="px-3.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-sm" style={{backgroundColor:'#FFF8E7', color:'#B8860B', border:'1px solid #F5DEB3'}}>
+                    {profile.gender === 'male' ? <MdMale style={{color:'#B8860B'}} /> : <MdFemale className="text-pink-600" />}
                     <span className="capitalize">{profile.gender}</span>
                   </span>
                 )}
@@ -373,7 +382,8 @@ export default function ProfileViewPage() {
                   {!profile.isConnected ? (
                     <button
                       onClick={handleFollow}
-                      className="px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2"
+                      className="px-5 py-2.5 text-white rounded-lg transition flex items-center gap-2"
+                      style={{backgroundColor:'#B8860B'}}
                     >
                       <MdFavorite />
                       <span>Send Follow Request</span>
@@ -382,7 +392,8 @@ export default function ProfileViewPage() {
                     <>
                       <button
                         onClick={() => nav(`/chat/${id}`)}
-                        className="px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2"
+                        className="px-5 py-2.5 text-white rounded-lg transition flex items-center gap-2"
+                        style={{backgroundColor:'#B8860B'}}
                       >
                         <MdChat />
                         <span>Start Chat</span>
@@ -403,8 +414,9 @@ export default function ProfileViewPage() {
                             className={`px-5 py-2.5 rounded-lg font-semibold transition flex items-center gap-2 ${
                               (profile.isBlockedByMe || profile.isBlockedByThem)
                                 ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'text-white'
                             }`}
+                            style={!(profile.isBlockedByMe || profile.isBlockedByThem) ? {backgroundColor:'#B8860B'} : {}}
                           >
                             <MdPhotoCamera />
                             <span>Request Photos</span>
@@ -425,7 +437,8 @@ export default function ProfileViewPage() {
               {isOwnProfile && (
                 <button
                   onClick={() => nav('/profile/edit')}
-                  className="mx-auto flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-300 text-blue-900 font-semibold shadow hover:bg-blue-500 transition"
+                  className="mx-auto flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold shadow transition"
+                  style={{backgroundColor:'#F5DEB3', color:'#2C2C2C'}}
                 >
                   <MdEdit />
                   <span>Edit Profile</span>
@@ -440,37 +453,37 @@ export default function ProfileViewPage() {
         <>
           {/* Admin-only fields */}
           {isAdmin && !isOwnProfile && (
-            <div className="mb-8 p-6 bg-white rounded-2xl border border-blue-200 shadow-md">
-              <h3 className="font-bold text-blue-800 mb-4 text-xl flex items-center gap-2">
+            <div className="mb-8 p-6 bg-white rounded-2xl shadow-md" style={{border:'1px solid #F5DEB3'}}>
+              <h3 className="font-bold mb-4 text-xl flex items-center gap-2" style={{color:'#B8860B'}}>
                 <MdInfo className="text-2xl" />
                 <span>Admin Information</span>
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {profile.email && (
+                {profile.email && showField('email') && (
                   <div>
                     <span className="font-semibold text-gray-700">Email:</span>
                     <span className="ml-2 text-gray-600">{profile.email}</span>
                   </div>
                 )}
-                {profile.contact && (
+                {profile.contact && showField('contact') && (
                   <div>
                     <span className="font-semibold text-gray-700">Contact:</span>
                     <span className="ml-2 text-gray-600">{profile.contact}</span>
                   </div>
                 )}
-                {profile.fatherName && (
+                {profile.fatherName && showField('fatherName') && (
                   <div>
                     <span className="font-semibold text-gray-700">Father:</span>
                     <span className="ml-2 text-gray-600">{profile.fatherName}</span>
                   </div>
                 )}
-                {profile.motherName && (
+                {profile.motherName && showField('motherName') && (
                   <div>
                     <span className="font-semibold text-gray-700">Mother:</span>
                     <span className="ml-2 text-gray-600">{profile.motherName}</span>
                   </div>
                 )}
-                {profile.itNumber && (
+                {profile.itNumber && showField('itNumber') && (
                   <div>
                     <span className="font-semibold text-gray-700">IT Number:</span>
                     <span className="ml-2 text-gray-600">{profile.itNumber}</span>
@@ -484,7 +497,7 @@ export default function ProfileViewPage() {
           {isAdmin && !isOwnProfile && (
             <div className="mb-6">
               <h3 className="font-semibold text-gray-800 mb-3 text-lg flex items-center gap-2">
-                <MdChat className="text-blue-500" />
+                <MdChat style={{color:'#B8860B'}} />
                 Chat History ({chatHistory.length} conversation{chatHistory.length !== 1 ? 's' : ''})
               </h3>
               {loadingChats ? (
@@ -503,10 +516,11 @@ export default function ProfileViewPage() {
                       {/* Chat Header - Clickable */}
                       <div
                         onClick={() => toggleChat(chat.chatId)}
-                        className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 cursor-pointer hover:from-blue-100 hover:to-purple-100 transition"
+                        className="p-4 cursor-pointer transition"
+                        style={{background:'linear-gradient(90deg, #FFF8E7, #FDF2D6)'}}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+                          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0" style={{background:'linear-gradient(135deg, #C9A227, #B8860B)'}}>
                             {chat.otherUser.profilePhoto ? (
                               <img
                                 src={chat.otherUser.profilePhoto}
@@ -534,7 +548,7 @@ export default function ProfileViewPage() {
                             )}
                           </div>
                           <div className="text-right">
-                            <div className="text-sm font-semibold text-blue-600">
+                            <div className="text-sm font-semibold" style={{color:'#B8860B'}}>
                               {chat.messageCount} message{chat.messageCount !== 1 ? 's' : ''}
                             </div>
                             <div className="text-xs text-gray-500">
@@ -556,7 +570,7 @@ export default function ProfileViewPage() {
                                     key={msg._id || idx}
                                     className={`flex ${isTargetUser ? 'justify-start' : 'justify-end'}`}
                                   >
-                                    <div className={`max-w-[70%] ${isTargetUser ? 'bg-white' : 'bg-blue-500 text-white'} p-3 rounded-lg shadow`}>
+                                    <div className={`max-w-[70%] ${isTargetUser ? 'bg-white' : ''} p-3 rounded-lg shadow`} style={!isTargetUser ? {backgroundColor:'#F5DEB3', color:'#2C2C2C'} : {}}>
                                       <div className="text-xs font-semibold mb-1 opacity-75">
                                         {msg.senderName}
                                       </div>
@@ -586,30 +600,30 @@ export default function ProfileViewPage() {
           )}
           
           {/* Personal Details */}
-          <div className="bg-white rounded-2xl shadow-xl p-5 mb-6 border border-blue-100">
-            <h3 className="font-bold text-blue-800 mb-4 text-lg flex items-center gap-2">
+          <div className="bg-white rounded-2xl shadow-xl p-5 mb-6" style={{border:'1px solid #F5DEB3'}}>
+            <h3 className="font-bold mb-4 text-lg flex items-center gap-2" style={{color:'#B8860B'}}>
               <MdPerson className="text-2xl" />
               <span>Personal Details</span>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {profile.fatherName && (
-                <div className="bg-blue-50 p-3.5 rounded-xl border border-blue-200">
+              {profile.fatherName && showField('fatherName') && (
+                <div className="p-3.5 rounded-xl" style={{backgroundColor:'#FFF8E7', border:'1px solid #F5DEB3'}}>
                   <div className="flex items-center gap-3">
-                    <MdPerson className="text-2xl text-blue-600" />
+                    <MdPerson className="text-2xl" style={{color:'#B8860B'}} />
                     <div>
-                      <p className="text-sm text-blue-600 font-medium">Father's Name</p>
-                      <p className="text-blue-800 font-semibold">{profile.fatherName}</p>
+                      <p className="text-sm font-medium" style={{color:'#C9A227'}}>Father's Name</p>
+                      <p className="font-semibold" style={{color:'#B8860B'}}>{profile.fatherName}</p>
                     </div>
                   </div>
                 </div>
               )}
-              {profile.motherName && (
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+              {profile.motherName && showField('motherName') && (
+                <div className="p-4 rounded-xl" style={{backgroundColor:'#FFF8E7', border:'1px solid #F5DEB3'}}>
                   <div className="flex items-center gap-3">
-                    <MdPerson className="text-2xl text-blue-600" />
+                    <MdPerson className="text-2xl" style={{color:'#B8860B'}} />
                     <div>
-                      <p className="text-sm text-blue-600 font-medium">Mother's Name</p>
-                      <p className="text-blue-800 font-semibold">{profile.motherName}</p>
+                      <p className="text-sm font-medium" style={{color:'#C9A227'}}>Mother's Name</p>
+                      <p className="font-semibold" style={{color:'#B8860B'}}>{profile.motherName}</p>
                     </div>
                   </div>
                 </div>
@@ -659,12 +673,12 @@ export default function ProfileViewPage() {
                 </div>
               )}
               {profile.education && (
-                <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-3.5 rounded-xl border border-blue-200">
+                <div className="p-3.5 rounded-xl" style={{background:'linear-gradient(90deg, #FFF8E7, #FDF2D6)', border:'1px solid #F5DEB3'}}>
                   <div className="flex items-center gap-3">
-                    <MdSchool className="text-2xl text-blue-600" />
+                    <MdSchool className="text-2xl" style={{color:'#B8860B'}} />
                     <div>
-                      <p className="text-sm text-blue-600 font-medium">Education</p>
-                      <p className="text-blue-800 font-semibold">{profile.education}</p>
+                      <p className="text-sm font-medium" style={{color:'#C9A227'}}>Education</p>
+                      <p className="font-semibold" style={{color:'#B8860B'}}>{profile.education}</p>
                     </div>
                   </div>
                 </div>
@@ -708,24 +722,24 @@ export default function ProfileViewPage() {
           {/* Looking For Section */}
           {profile.lookingFor && (
             <div className="bg-white rounded-2xl shadow-md p-5 mb-6">
-              <h3 className="font-bold text-blue-800 mb-3.5 text-lg flex items-center gap-2">
+              <h3 className="font-bold mb-3.5 text-lg flex items-center gap-2" style={{color:'#B8860B'}}>
                 <MdFavorite className="text-2xl text-pink-600" />
                 <span>Looking For</span>
               </h3>
-              <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+              <div className="p-4 rounded-xl" style={{backgroundColor:'#FFF8E7', border:'1px solid #F5DEB3'}}>
                 <p className="text-gray-700 leading-relaxed text-base">{profile.lookingFor}</p>
               </div>
             </div>
           )}
 
           {/* About Section */}
-          {profile.about && (
+          {profile.about && showField('about') && (
             <div className="bg-white rounded-2xl shadow-md p-5 mb-6">
-              <h3 className="font-bold text-blue-800 mb-3.5 text-lg flex items-center gap-2">
+              <h3 className="font-bold mb-3.5 text-lg flex items-center gap-2" style={{color:'#B8860B'}}>
                 <MdInfo className="text-2xl" />
                 <span>About Me</span>
               </h3>
-              <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+              <div className="p-4 rounded-xl" style={{backgroundColor:'#FFF8E7', border:'1px solid #F5DEB3'}}>
                 <p className="text-gray-700 leading-relaxed text-base">{profile.about}</p>
               </div>
             </div>
@@ -734,7 +748,7 @@ export default function ProfileViewPage() {
           {/* Gallery Images */}
           {profile.galleryImages && profile.galleryImages.length > 0 && (
             <div className="bg-white rounded-2xl shadow-md p-5">
-              <h3 className="font-bold text-blue-800 mb-5 text-lg flex items-center gap-2">
+              <h3 className="font-bold mb-5 text-lg flex items-center gap-2" style={{color:'#B8860B'}}>
                 <MdPhotoCamera className="text-2xl" />
                 <span>Photo Gallery ({profile.galleryImages.length})</span>
               </h3>
@@ -743,7 +757,7 @@ export default function ProfileViewPage() {
                   const isVideo = /\.(mp4|webm|mov)$/i.test(src)
                   const url = transformUrl(src)
                   return (
-                    <div key={idx} className="relative overflow-hidden rounded-2xl shadow border border-blue-100 bg-white">
+                    <div key={idx} className="relative overflow-hidden rounded-2xl shadow bg-white" style={{border:'1px solid #F5DEB3'}}>
                       {isVideo ? (
                         <video
                           src={url}
@@ -861,6 +875,8 @@ export default function ProfileViewPage() {
           </button>
         </div>
       )}
+      </div>
+    </div>
       </div>
     </div>
   )

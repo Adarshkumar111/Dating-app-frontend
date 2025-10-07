@@ -154,9 +154,9 @@ export default function EditProfilePage() {
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Header */}
           <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-            <button onClick={() => nav(-1)} className="text-blue-500">
+            <button onClick={() => nav(-1)} className="text-amber-600">
             </button>
-            <h1 className="text-lg font-bold text-blue-500">PROFILE</h1>
+            <h1 className="text-lg font-bold text-amber-600">PROFILE</h1>
             <button className="text-gray-500">
             </button>
           </div>
@@ -166,11 +166,11 @@ export default function EditProfilePage() {
             {/* Profile Photo with Upload */}
             <div className="mb-4">
               <label className="cursor-pointer">
-                <div className="w-24 h-24 mx-auto bg-blue-200 rounded-full flex items-center justify-center overflow-hidden">
+                <div className="w-24 h-24 mx-auto bg-yellow-200 rounded-full flex items-center justify-center overflow-hidden">
                   {displayPhoto ? (
                     <img src={displayPhoto} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-4xl font-bold text-blue-500">{firstLetter}</span>
+                    <span className="text-4xl font-bold text-amber-600">{firstLetter}</span>
                   )}
                 </div>
                 <input
@@ -183,23 +183,23 @@ export default function EditProfilePage() {
             </div>
 
             {/* Name */}
-            <h2 className="text-xl font-bold text-blue-500 mb-6">{currentUser?.name || 'John Doe'}</h2>
+            <h2 className="text-xl font-bold text-amber-600 mb-6">{currentUser?.name || 'John Doe'}</h2>
 
-            {info && <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">{info}</div>}
+            {info && <div className="mb-4 p-3 bg-yellow-50 text-amber-700 rounded-lg text-sm">{info}</div>}
 
             {/* Photos Section */}
-            <div className="border border-blue-200 rounded-xl p-4 mb-6">
-              <h3 className="text-left text-blue-500 font-semibold mb-3">PHOTOS</h3>
+            <div className="border border-yellow-300 rounded-xl p-4 mb-6">
+              <h3 className="text-left text-amber-600 font-semibold mb-3">PHOTOS</h3>
               <div className="grid grid-cols-3 gap-2">
                 {Array.from({ length: 6 }).map((_, i) => {
                   const item = slotViews[i]
                   return (
                     <div key={i} className="relative group">
-                      <label className="block w-full aspect-square rounded-lg overflow-hidden border border-blue-100 bg-blue-50 cursor-pointer">
+                      <label className="block w-full aspect-square rounded-lg overflow-hidden border border-yellow-200 bg-yellow-50 cursor-pointer">
                         {item ? (
                           <img src={item.kind === 'existing' ? item.url : item.previewUrl} alt={`photo-${i+1}`} className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-blue-100"></div>
+                          <div className="w-full h-full flex items-center justify-center bg-yellow-100"></div>
                         )}
                         <input
                           type="file"
@@ -227,16 +227,16 @@ export default function EditProfilePage() {
             {/* Edit Form */}
             {tab === 'profile' && (
               <form onSubmit={handleUpdateProfile} className="space-y-3 text-left">
-                <input name='name' placeholder='Full Name' value={form.name} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
-                <input name='fatherName' placeholder='Father Name' value={form.fatherName} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
-                <input name='motherName' placeholder='Mother Name' value={form.motherName} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
-                <input name='age' placeholder='Age' value={form.age} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
-                <input name='location' placeholder='Location' value={form.location} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
-                <input name='education' placeholder='Education' value={form.education} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
-                <input name='occupation' placeholder='Occupation' value={form.occupation} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50" />
-                <textarea name='about' placeholder='About yourself' value={form.about} onChange={onChange} className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50 resize-none h-20" />
+                <input name='name' placeholder='Full Name' value={form.name} onChange={onChange} className="w-full border border-yellow-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-yellow-50" />
+                <input name='fatherName' placeholder='Father Name' value={form.fatherName} onChange={onChange} className="w-full border border-yellow-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-yellow-50" />
+                <input name='motherName' placeholder='Mother Name' value={form.motherName} onChange={onChange} className="w-full border border-yellow-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-yellow-50" />
+                <input name='age' placeholder='Age' value={form.age} onChange={onChange} className="w-full border border-yellow-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-yellow-50" />
+                <input name='location' placeholder='Location' value={form.location} onChange={onChange} className="w-full border border-yellow-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-yellow-50" />
+                <input name='education' placeholder='Education' value={form.education} onChange={onChange} className="w-full border border-yellow-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-yellow-50" />
+                <input name='occupation' placeholder='Occupation' value={form.occupation} onChange={onChange} className="w-full border border-yellow-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-yellow-50" />
+                <textarea name='about' placeholder='About yourself' value={form.about} onChange={onChange} className="w-full border border-yellow-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-yellow-50 resize-none h-20" />
 
-                <button disabled={loading} type='submit' className={`w-full bg-blue-500 text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <button disabled={loading} type='submit' className={`w-full bg-amber-600 text-white font-semibold py-3 rounded-lg hover:bg-amber-700 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                   {loading ? 'Updating...' : 'Save Changes'}
                 </button>
 
@@ -259,7 +259,7 @@ export default function EditProfilePage() {
                   placeholder='Current Password'
                   value={passwordForm.currentPassword}
                   onChange={onPasswordChange}
-                  className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50"
+                  className="w-full border border-yellow-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-yellow-50"
                 />
                 <input
                   type='password'
@@ -267,7 +267,7 @@ export default function EditProfilePage() {
                   placeholder='New Password'
                   value={passwordForm.newPassword}
                   onChange={onPasswordChange}
-                  className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50"
+                  className="w-full border border-yellow-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-yellow-50"
                 />
                 <input
                   type='password'
@@ -275,9 +275,9 @@ export default function EditProfilePage() {
                   placeholder='Confirm New Password'
                   value={passwordForm.confirmPassword}
                   onChange={onPasswordChange}
-                  className="w-full border border-blue-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50"
+                  className="w-full border border-yellow-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-yellow-50"
                 />
-                <button disabled={loading} type='submit' className={`w-full bg-blue-500 text-white font-semibold py-3 rounded-lg hover:bg-blue-600 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <button disabled={loading} type='submit' className={`w-full bg-amber-600 text-white font-semibold py-3 rounded-lg hover:bg-amber-700 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                   {loading ? 'Changing...' : 'Change Password'}
                 </button>
                 <button 

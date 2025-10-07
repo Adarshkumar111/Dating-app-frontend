@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { listOpposite, rejectUser, getFriends } from '../services/userService.js';
 import { getEnabledFilters } from '../services/publicService.js';
+import { getAppSettings } from '../services/adminService.js';
 import { sendRequest, unfollow, cancelRequest } from '../services/requestService.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BsChatDots } from 'react-icons/bs';
@@ -18,6 +19,13 @@ export default function DashboardPage() {
   // inline info banner removed; use toast instead
   const navigate = useNavigate();
   const [showFilters, setShowFilters] = useState(false);
+  const [profileDisplay, setProfileDisplay] = useState({});
+
+  // Helper: whether a field is enabled by admin (defaults to true if not configured)
+  const showField = (key) => {
+    if (!profileDisplay || Object.keys(profileDisplay).length === 0) return true;
+    return !!profileDisplay[key];
+  };
 
   // Filters state
   const [enabledFilters, setEnabledFilters] = useState({ age: true, education: true, occupation: true, nameSearch: true });
@@ -106,6 +114,16 @@ export default function DashboardPage() {
     })();
   }, []);
 
+  // Load profile display controls once
+  useEffect(() => {
+    (async () => {
+      try {
+        const app = await getAppSettings();
+        setProfileDisplay(app?.profileDisplayFields || {});
+      } catch (_) {}
+    })();
+  }, []);
+
   // Keep URL query param in sync with selected tab
   useEffect(() => {
     const qp = tab === 'friends' ? { tab: 'messages' } : {};
@@ -186,16 +204,29 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-6xl mx-auto px-4 py-6 md:pb-0">
+    <div className="min-h-screen" style={{backgroundColor: '#FFF8E7'}}>
+      {/* Desktop top background band to match navbar and prevent white gap on scroll */}
+      <div
+        className="hidden md:block fixed top-0 left-0 right-0"
+        style={{ height: '96px', backgroundColor: '#FFF8E7', zIndex: 5 }}
+        aria-hidden="true"
+      />
+      <div className="max-w-6xl mx-auto px-4 py-6 md:pb-0 md:h-[calc(100vh-96px)] md:flex md:flex-col">
         {/* Fixed header section on desktop */}
-        <div className="md:sticky md:top-20 md:z-20 md:bg-white md:pb-4">
+        <div
+          className="md:sticky md:z-20 mt-20 md:pb-4"
+          style={{ position: 'sticky', top: '96px', backgroundColor: '#FFF8E7' }}
+        >
           {/* Header (only on dashboard tab) - hidden on mobile */}
           {tab === 'dashboard' && (
-            <div className="text-center mb-4 hidden md:block">
-              <h1 className="text-3xl font-bold mb-2" style={{color: '#B8860B'}}>Welcome to M Nikah</h1>
-              <p className="text-gray-600">Find your perfect match</p>
-            </div>
+            <>
+              <div className="text-center mb-4 hidden md:block">
+                <h1 className="text-3xl font-bold mb-2" style={{color: '#B8860B'}}>Welcome to M Nikah</h1>
+                <p className="text-gray-600">Find your perfect match</p>
+              </div>
+              {/* Spacer to prevent subtle layout shift under sticky header on desktop */}
+              <div className="hidden md:block h-2"></div>
+            </>
           )}
 
           {/* Tabs - hidden on mobile, shown on desktop */}
@@ -209,7 +240,7 @@ export default function DashboardPage() {
               border: tab === 'dashboard' ? 'none' : '2px solid #D4AF37'
             }}
           >
-            🔍 Dashboard
+             Dashboard
           </button>
           <button
             onClick={() => setTab('friends')}
@@ -221,7 +252,7 @@ export default function DashboardPage() {
             }}
             aria-label="Messages"
           >
-            💬 Messages
+             Messages
             {unreadTotal > 0 && (
               <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1 flex items-center justify-center">
                 {unreadTotal > 5 ? '5+' : unreadTotal}
@@ -269,8 +300,11 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Mobile-only compact filters */}
-        <div className="md:hidden flex justify-center gap-3 mb-4 mt-3 relative">
+        {/* Mobile-only compact filters (fixed under search) */}
+        <div
+          className="md:hidden flex justify-center gap-3 mt-3"
+          style={{ position: 'fixed', top: '140px', left: 0, right: 0, backgroundColor: '#FFF8E7', zIndex: 25, padding: '0 16px' }}
+        >
           {tab === 'dashboard' && (
             <div className="relative">
               <button
@@ -313,7 +347,10 @@ export default function DashboardPage() {
 
           {/* Dashboard Search (below tabs) */}
           {tab === 'dashboard' && (
-            <div className="fixed md:static top-[86px] md:top-auto left-0 right-0 md:left-auto md:right-auto z-30 px-4 md:px-0 bg-white pb-2 md:pb-0 mb-0 md:mb-4">
+            <div
+              className="fixed md:static top-[86px] md:top-auto left-0 right-0 md:left-auto md:right-auto z-30 px-4 md:px-0 pb-2 md:pb-0 mb-0 md:mb-4"
+              style={{ backgroundColor: '#FFF8E7' }}
+            >
               <div className="relative">
                 <div className="flex items-center bg-white rounded-xl shadow-sm px-3 py-1" style={{border: '2px solid #D4AF37'}}>
                   <input
@@ -342,50 +379,58 @@ export default function DashboardPage() {
 
         {/* Inline info banner removed; toasts are used instead */}
         
-        {/* Spacer for fixed search bar - only on mobile */}
-        {tab === 'dashboard' && <div className="h-14 md:h-0"></div>}
+        {/* Remove external spacer; we will pad the scroll container on mobile */}
         
         {/* dashboard Tab */}
         {tab === 'dashboard' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+          <div className="overflow-y-auto md:flex-1 md:pr-1 md:pt-0" style={{ height: 'calc(100vh - 180px)', paddingTop: '144px' }}>
+            <div className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4">
             {users.map(u => (
-              <div key={u._id} className="bg-white shadow-md rounded-xl p-4">
+              <div key={u._id} className="col-span-1 bg-white shadow-md rounded-xl p-4 min-w-0">
                 {/* Header: Avatar + Name + view link */}
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold" style={{backgroundColor: '#B8860B'}}>
-                      {u.profilePhoto ? (
-                        <img src={u.profilePhoto} alt="profile" className="w-10 h-10 rounded-full object-cover" />
-                      ) : (
-                        (u.name?.[0]?.toUpperCase() || '?')
-                      )}
-                    </div>
+                    {showField('profilePhoto') && (
+                      <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold" style={{backgroundColor: '#B8860B'}}>
+                        {u.profilePhoto ? (
+                          <img src={u.profilePhoto} alt="profile" className="w-10 h-10 rounded-full object-cover" />
+                        ) : (
+                          (showField('name') ? (u.name?.[0]?.toUpperCase() || '?') : '?')
+                        )}
+                      </div>
+                    )}
                     <div>
-                      <h3 className="font-semibold leading-5" style={{color: '#B8860B'}}>{u.name}</h3>
-                      {u.age && (
-                        <p className="text-xs text-gray-500">{u.age} yrs{u.location ? ` • ${u.location}` : ''}</p>
+                      {showField('name') && (
+                        <h3 className="font-semibold leading-5" style={{color: '#B8860B'}}>{u.name}</h3>
                       )}
+                      {(u.age && showField('age')) || (u.location && showField('location')) ? (
+                        <p className="text-xs text-gray-500">
+                          {showField('age') && u.age ? `${u.age} yrs` : ''}
+                          {showField('age') && showField('location') && u.age && u.location ? ' • ' : ''}
+                          {showField('location') && u.location ? u.location : ''}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   <Link to={`/profile/${u._id}`} className="text-sm font-medium hover:underline" style={{color: '#B8860B'}}>View</Link>
                 </div>
 
                 {/* Description */}
-                {u.about && (
+                {u.about && showField('about') && (
                   <p className="text-sm text-gray-700 mb-3 line-clamp-2">
                     {u.about}
                   </p>
                 )}
 
                 {/* Quick facts */}
-                {(u.education || u.maritalStatus || u.occupation) && (
+                {((u.education && showField('education')) || (u.maritalStatus) || (u.occupation && showField('occupation'))) && (
                   <div className="flex flex-wrap items-center gap-2 mb-3">
-                    {u.education && (
+                    {u.education && showField('education') && (
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium" style={{backgroundColor: 'white', color: '#B8860B', border: '1px solid #D4AF37'}}>
                         🎓 {u.education}
                       </span>
                     )}
-                    {u.occupation && (
+                    {u.occupation && showField('occupation') && (
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium" style={{backgroundColor: 'white', color: '#B8860B', border: '1px solid #D4AF37'}}>
                         💼 {u.occupation}
                       </span>
@@ -431,6 +476,10 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
+
+            
+
+            
             
             {users.length === 0 && (
               <div className="col-span-full text-center py-20">
@@ -438,12 +487,14 @@ export default function DashboardPage() {
                 <p className="text-gray-500">You've seen all available profiles!</p>
               </div>
             )}
+            </div>
           </div>
         )}
 
         {/* Messages Tab */}
         {tab === 'friends' && (
-          friends.length === 0 ? (
+          <div className="overflow-hidden md:flex md:flex-col">
+          {friends.length === 0 ? (
             <div className="text-center py-20">
               <div className="text-6xl mb-6">💬</div>
               <h3 className="text-2xl font-bold mb-3" style={{color: '#B8860B'}}>No Messages Yet</h3>
@@ -459,7 +510,7 @@ export default function DashboardPage() {
           ) : (
             <>
               {/* Friends-only search bar (matches dashboard search UI) - reduced height */}
-              <div className="fixed md:static top-[86px] md:top-auto left-0 right-0 md:left-auto md:right-auto z-30 px-4 md:px-0 bg-white pb-2 md:pb-0 mb-0 md:mb-4">
+              <div className="fixed md:static top-[86px] md:top-auto left-0 right-0 md:left-auto md:right-auto z-30 px-4 md:px-0 pb-2 md:pb-0 mb-0 md:mb-4" style={{ backgroundColor: '#FFF8E7' }}>
                 <div className="relative">
                   <div className="flex items-center bg-white rounded-xl shadow-sm px-3 py-1" style={{border: '2px solid #D4AF37'}}>
                     <input
@@ -483,17 +534,17 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-              {/* Spacer for fixed search bar - only on mobile */}
-              <div className="h-14 md:h-0"></div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+              {/* Remove external spacer; we will pad the messages list container on mobile */}
+              {/* Scroll container for messages list only */}
+              <div className="overflow-y-auto md:flex-1 md:pt-0" style={{ height: 'calc(100vh - 180px)', paddingTop: '56px' }}>
+                <div className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4 ">
               {filteredFriends.map((friend) => (
                 <div 
                   key={friend._id} 
                   onClick={() => navigate(`/chat/${friend._id}`)}
-                  className="bg-white rounded-2xl shadow-sm md:shadow-md overflow-hidden hover:shadow-md md:hover:shadow-lg transform hover:scale-[1.02] transition-all duration-300 cursor-pointer animate-fade-in"
-                  style={{border: '1px solid #F5DEB3'}}
+                  className="col-span-1 overflow-hidden transform transition-all duration-300 cursor-pointer animate-fade-in space-y-4 min-w-0"
                 >
-                  <div className="p-6">
+                  <div className="p-6 rounded-2xl bg-white hover:bg-gray-100 ">
                     <div className="flex items-center mb-4">
                       <div className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-2xl flex-shrink-0 relative" style={{backgroundColor: '#B8860B'}}>
                         {friend.profilePhoto ? (
@@ -537,11 +588,19 @@ export default function DashboardPage() {
                       )}
                     </div>
                   </div>
+                  
+
+                  
+                      
+                  
+                  
                 </div>
               ))}
             </div>
+            </div>
             </>
-          )
+          )}
+          </div>
         )}
       </div>
     </div>

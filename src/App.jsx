@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import './styles/compact.css'
@@ -35,6 +35,8 @@ function PrivateRoute({ children, allowPending = false, adminOnly = false, noAdm
 
 export default function App() {
   const { token, user } = useAuth()
+  const location = useLocation()
+  const isDashboardRoute = (location.pathname || '').startsWith('/dashboard')
   
   // Determine default route based on user type
   const getDefaultRoute = () => {
@@ -44,29 +46,31 @@ export default function App() {
   }
   
   return (
-    <div className="min-h-screen app-blue app-compact bg-white">
+    <div className={`  min-h-screen app-blue app-compact ${isDashboardRoute ? 'overflow-hidden' : ''}`} style={{ backgroundColor: '#FFF8E7' }}>
       {token && <Navbar />}
-      {token && <div className="h-16 md:h-20" />}
+      {/* Top spacer for all non-dashboard routes to offset fixed navbar height */}
+      {token && !isDashboardRoute && (
+        <div className="h-16 md:h-20" />
+      )}
       {token && <MessageNotificationBanner />}
       {token && <MobileBottomBar />}
       {/* Bottom spacer for mobile bottom bar - hidden on chat routes */}
-      {token && window.location.pathname && !window.location.pathname.startsWith('/chat/') && <div className="h-14 md:h-0" />}
+      {token && location.pathname && !location.pathname.startsWith('/chat/') && <div  />}
       <ToastContainer position="top-center" autoClose={2500} hideProgressBar closeOnClick pauseOnHover={false} theme="colored" />
-      <Routes>
-        <Route path="/" element={<Navigate to={getDefaultRoute()} />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/verify-email" element={<VerifyEmailPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/forget-password" element={<ForgetPasswordPage />} />
-        <Route path="/waiting" element={<PrivateRoute allowPending={true}><WaitingApprovalPage /></PrivateRoute>} />
-        <Route path="/dashboard" element={<PrivateRoute noAdmin={true}><DashboardPage /></PrivateRoute>} />
-        <Route path="/profile/:id" element={<PrivateRoute><ProfileViewPage /></PrivateRoute>} />
-        <Route path="/profile/edit" element={<PrivateRoute><EditProfilePage /></PrivateRoute>} />
-        <Route path="/chat/:chatId" element={<PrivateRoute noAdmin={true}><ChatPage /></PrivateRoute>} />
-        <Route path="/premium" element={<PrivateRoute noAdmin={true}><PremiumPage /></PrivateRoute>} />
-        <Route path="/admin" element={<PrivateRoute adminOnly={true}><AdminPanelPage /></PrivateRoute>} />
-        <Route path="/blocked-users" element={<PrivateRoute><BlockedUsersPage /></PrivateRoute>} />
-      </Routes>
+    <Routes>
+      <Route path="/" element={<Navigate to={getDefaultRoute()} />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/forget-password" element={<ForgetPasswordPage />} />
+      <Route path="/waiting" element={<PrivateRoute allowPending={true}><WaitingApprovalPage /></PrivateRoute>} />
+      <Route path="/dashboard" element={<PrivateRoute noAdmin={true}><DashboardPage /></PrivateRoute>} />
+      <Route path="/profile/:id" element={<PrivateRoute><ProfileViewPage /></PrivateRoute>} />
+      <Route path="/profile/edit" element={<PrivateRoute><EditProfilePage /></PrivateRoute>} />
+      <Route path="/chat/:chatId" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
+      <Route path="/premium" element={<PrivateRoute noAdmin={true}><PremiumPage /></PrivateRoute>} />
+      <Route path="/admin" element={<PrivateRoute adminOnly={true}><AdminPanelPage /></PrivateRoute>} />
+      <Route path="/blocked-users" element={<PrivateRoute><BlockedUsersPage /></PrivateRoute>} />
+    </Routes>
     </div>
   )
 }
