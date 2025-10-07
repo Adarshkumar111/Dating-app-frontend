@@ -44,7 +44,7 @@ export default function App() {
   }
   
   return (
-    <div className="min-h-screen app-blue app-compact">
+    <div className="min-h-screen app-blue app-compact bg-white">
       {token && <Navbar />}
       {token && <div className="h-16 md:h-20" />}
       {token && <MessageNotificationBanner />}

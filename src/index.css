@@ -1,11 +1,18 @@
 @import "tailwindcss";
 
-/* Custom Color Variables */
+/* Custom Color Variables - Professional Matrimonial Theme */
 :root {
-  --primary-blue: #1E3A8A;
-  --secondary-gold: #FFC107;
-  --background-light: #F9FAFB;
-  --accent-coral: #F472B6;
+  --primary-gold: #B8860B;
+  --secondary-gold: #DAA520;
+  --light-gold: #F5F5DC;
+  --background-cream: #FFF8E7;
+  --text-dark: #2C2C2C;
+  --border-gold: #D4AF37;
+}
+
+/* Golden text color utility */
+.text-golden {
+  color: #B8860B;
 }
 
 /* Custom Animations */
@@ -55,10 +62,10 @@
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(244, 114, 182, 0.3);
+    box-shadow: 0 0 5px rgba(218, 165, 32, 0.3);
   }
   50% {
-    box-shadow: 0 0 20px rgba(244, 114, 182, 0.6);
+    box-shadow: 0 0 20px rgba(218, 165, 32, 0.6);
   }
 }
 
@@ -102,33 +109,82 @@
 
 /* Custom Gradient Backgrounds */
 .bg-premium-gradient {
-  background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 50%, #F472B6 100%);
+  background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%);
 }
 
 .bg-gold-gradient {
-  background: linear-gradient(135deg, #FFC107 0%, #FFD54F 100%);
+  background: linear-gradient(135deg, #B8860B 0%, #D4AF37 100%);
 }
 
 .bg-coral-gradient {
-  background: linear-gradient(135deg, #F472B6 0%, #EC4899 100%);
+  background: linear-gradient(135deg, #DAA520 0%, #F5DEB3 100%);
 }
 
 /* Custom Button Styles */
 .btn-primary {
-  @apply bg-blue-800 hover:bg-blue-900 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl;
+  background-color: #B8860B;
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s;
+  transform: scale(1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary:hover {
+  background-color: #9A7209;
+  transform: scale(1.05);
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
 }
 
 .btn-secondary {
-  @apply bg-amber-400 hover:bg-amber-500 text-blue-900 font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl;
+  background-color: #DAA520;
+  color: #2C2C2C;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s;
+  transform: scale(1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary:hover {
+  background-color: #C89619;
+  transform: scale(1.05);
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
 }
 
 .btn-accent {
-  @apply bg-pink-400 hover:bg-pink-500 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl;
+  background-color: #D4AF37;
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s;
+  transform: scale(1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-accent:hover {
+  background-color: #B8941F;
+  transform: scale(1.05);
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.2);
 }
 
 /* Custom Input Styles */
 .input-premium {
-  @apply border-2 border-gray-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-all duration-300 bg-white;
+  border: 2px solid #D4AF37;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  outline: none;
+  transition: all 0.3s;
+  background-color: white;
+}
+
+.input-premium:focus {
+  border-color: #B8860B;
+  box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.1);
 }
 
 /* Mobile Menu Animation */
@@ -157,14 +213,15 @@
 /* Responsive Utilities */
 @media (max-width: 768px) {
   .container-mobile {
-    @apply px-4 py-2;
+    padding: 0.5rem 1rem;
   }
   
   .text-responsive {
-    @apply text-sm;
+    font-size: 0.875rem;
   }
   
   .card-mobile {
-    @apply mx-2 p-4;
+    margin: 0 0.5rem;
+    padding: 1rem;
   }
 }

@@ -31,12 +31,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         {/* Card Container */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          {/* Blue Header with Large M */}
-          <div className="bg-blue-500 h-40 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden" style={{border: '2px solid #D4AF37'}}>
+          {/* Golden Header with Large M */}
+          <div className="h-40 flex items-center justify-center" style={{backgroundColor: '#B8860B'}}>
             <span className="text-7xl font-bold text-white">M</span>
           </div>
 
@@ -51,7 +51,10 @@ export default function LoginPage() {
                   value={form.email} 
                   onChange={onChange}
                   required
-                  className="w-full px-5 py-3 border-2 border-gray-300 rounded-full focus:outline-none focus:border-blue-500 transition-colors text-gray-700 placeholder-gray-400"
+                  className="w-full px-5 py-3 border-2 rounded-full focus:outline-none transition-colors text-gray-700 placeholder-gray-400"
+                  style={{borderColor: '#D4AF37'}}
+                  onFocus={(e) => e.target.style.borderColor = '#B8860B'}
+                  onBlur={(e) => e.target.style.borderColor = '#D4AF37'}
                 />
               </div>
               
@@ -63,18 +66,22 @@ export default function LoginPage() {
                   value={form.password} 
                   onChange={onChange}
                   required
-                  className="w-full px-5 py-3 border-2 border-gray-300 rounded-full focus:outline-none focus:border-blue-500 transition-colors text-gray-700 placeholder-gray-400"
+                  className="w-full px-5 py-3 border-2 rounded-full focus:outline-none transition-colors text-gray-700 placeholder-gray-400"
+                  style={{borderColor: '#D4AF37'}}
+                  onFocus={(e) => e.target.style.borderColor = '#B8860B'}
+                  onBlur={(e) => e.target.style.borderColor = '#D4AF37'}
                 />
               </div>
 
               <div className="text-center py-2">
-                <div className="inline-block w-12 h-1 bg-blue-300 rounded-full"></div>
+                <div className="inline-block w-12 h-1 rounded-full" style={{backgroundColor: '#DAA520'}}></div>
               </div>
 
               <button 
                 disabled={loading} 
                 type='submit'
-                className="w-full py-3 bg-blue-500 text-white font-semibold rounded-full hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg border-2 border-blue-500"
+                className="w-full py-3 text-white font-semibold rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg border-2"
+                style={{backgroundColor: '#B8860B', borderColor: '#B8860B'}}
               >
                 {loading ? 'Signing in...' : 'Log In'}
               </button>
@@ -82,7 +89,10 @@ export default function LoginPage() {
               <button 
                 type='button'
                 onClick={() => nav('/forget-password')}
-                className="w-full py-3 bg-white text-blue-500 font-semibold rounded-full hover:bg-blue-50 transition-colors border-2 border-blue-500"
+                className="w-full py-3 bg-white font-semibold rounded-full transition-colors border-2"
+                style={{color: '#B8860B', borderColor: '#B8860B'}}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#F5F5DC'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
               >
                 Forget Password?
               </button>
@@ -93,7 +103,8 @@ export default function LoginPage() {
                 Don't have an account?{' '}
                 <Link 
                   to='/signup' 
-                  className="text-blue-500 font-semibold hover:text-blue-600 transition-colors"
+                  className="font-semibold transition-colors"
+                  style={{color: '#B8860B'}}
                 >
                   Sign Up
                 </Link>

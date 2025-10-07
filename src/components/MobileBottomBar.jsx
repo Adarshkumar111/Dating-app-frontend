@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { MdHome, MdMessage, MdPerson, MdNotifications, MdClose } from 'react-icons/md'
+import { MdHome, MdMessage, MdPerson, MdNotifications, MdClose, MdHelp } from 'react-icons/md'
 import { getNotifications } from '../services/notificationService.js'
 import { getPendingProfileEdits } from '../services/adminService.js'
 import { getFriends } from '../services/userService.js'
 import NotificationDropdown from './NotificationDropdown.jsx'
+import HelpDropdown from './HelpDropdown.jsx'
 import { connectSocket, onSocketEvent } from '../services/socketService.js'
 import { toast } from 'react-toastify'
 
@@ -14,17 +15,13 @@ export default function MobileBottomBar() {
   const nav = useNavigate()
   const loc = useLocation()
   const [openSheet, setOpenSheet] = useState(false)
+  const [openHelpSheet, setOpenHelpSheet] = useState(false)
   const [notifCount, setNotifCount] = useState(0)
   const [unreadCount, setUnreadCount] = useState(0)
 
-  if (!user) return null
-
-  // Hide bottom bar on chat page
-  if (loc.pathname.startsWith('/chat/')) return null
-
   // Only show on phones
   // Hidden on md and above via tailwind
-  const isAdmin = !!user.isAdmin
+  const isAdmin = !!user?.isAdmin
 
   const go = (path) => {
     setOpenSheet(false)
@@ -34,7 +31,8 @@ export default function MobileBottomBar() {
   const Item = ({ active, onClick, children }) => (
     <button
       onClick={onClick}
-      className={`flex-1 flex items-center justify-center py-2 ${active ? 'text-white' : 'text-white/80'}`}
+      className="flex-1 flex items-center justify-center py-2"
+      style={{color: active ? '#B8860B' : '#8B7355'}}
     >
       {children}
     </button>
@@ -68,6 +66,8 @@ export default function MobileBottomBar() {
   }
 
   useEffect(() => {
+    if (!user) return
+    
     loadNotifCount()
     loadUnreadCount()
     
@@ -137,12 +137,17 @@ export default function MobileBottomBar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loc.pathname, loc.search])
 
+  if (!user) return null
+
+  // Hide bottom bar on chat page
+  if (loc.pathname.startsWith('/chat/')) return null
+
   return (
     <>
       {/* Bottom bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40">
         <div className="mx-auto max-w-7xl">
-          <div className="bg-blue-600 rounded-t-2xl shadow-2xl flex items-center">
+          <div className="rounded-t-2xl shadow-2xl flex items-center" style={{backgroundColor: '#F5F5DC'}}>
             {/* For users: Messages | Home (center emphasized) | Notifications | Profile */}
             {/* For admins: Dashboard | Notifications | Profile */}
             {!isAdmin && (
@@ -169,6 +174,9 @@ export default function MobileBottomBar() {
                       </span>
                     )}
                   </div>
+                </Item>
+                <Item active={false} onClick={() => setOpenHelpSheet(true)}>
+                  <MdHelp className="text-2xl" />
                 </Item>
                 <Item active={loc.pathname.startsWith('/profile/')} onClick={() => go(`/profile/${user.id}`)}>
                   <MdPerson className="text-2xl" />
@@ -212,6 +220,27 @@ export default function MobileBottomBar() {
             </div>
             <div className="p-2">
               <NotificationDropdown isMobileSheet onUpdate={loadNotifCount} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Help sheet */}
+      {openHelpSheet && (
+        <div className="md:hidden fixed inset-0 z-50" onClick={() => setOpenHelpSheet(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute left-0 right-0 bottom-0 bg-white rounded-t-2xl shadow-2xl animate-slide-up max-h-[70vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-3 border-b border-gray-200 sticky top-0 bg-white z-10">
+              <div className="text-lg font-semibold text-blue-800 flex items-center gap-2">
+                <MdHelp className="text-blue-500" />
+                Help & Support
+              </div>
+              <button onClick={() => setOpenHelpSheet(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                <MdClose className="text-xl" />
+              </button>
+            </div>
+            <div className="p-2">
+              <HelpDropdown isMobileSheet onClose={() => setOpenHelpSheet(false)} />
             </div>
           </div>
         </div>

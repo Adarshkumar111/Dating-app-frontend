@@ -163,10 +163,18 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
   const handleRespond = async (requestId, action) => {
     setLoading(true)
     try {
-      await respondToRequest({ requestId, action })
+      console.log('Responding to request:', { requestId, action })
+      const result = await respondToRequest({ requestId, action })
+      console.log('Response result:', result)
       await loadNotifications()
+      // Trigger parent update callback to refresh dashboard
+      if (onUpdate) onUpdate()
+      // Dispatch event to refresh dashboard page
+      window.dispatchEvent(new Event('requestStatusChanged'))
     } catch (e) {
       console.error('Failed to respond:', e)
+      console.error('Error details:', e.response?.data)
+      alert(`Error: ${e.response?.data?.message || 'Failed to respond to request'}`)
     }
     setLoading(false)
   }
@@ -206,13 +214,21 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
               >
                 <div className="flex items-start gap-3">
                   {notif.kind === 'system' ? (
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      notif.type === 'profile_approved' ? 'bg-green-100' : 'bg-red-100'
-                    }`}>
-                      <span className="text-2xl">
-                        {notif.type === 'profile_approved' ? '✅' : '❌'}
-                      </span>
-                    </div>
+                    notif.relatedUser?.profilePhoto ? (
+                      <img
+                        src={notif.relatedUser.profilePhoto}
+                        alt={notif.relatedUser.name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        notif.type === 'profile_approved' || notif.type === 'request_accepted' ? 'bg-green-100' : 'bg-red-100'
+                      }`}>
+                        <span className="text-2xl">
+                          {notif.type === 'profile_approved' || notif.type === 'request_accepted' ? '✅' : '❌'}
+                        </span>
+                      </div>
+                    )
                   ) : notif.from?.profilePhoto ? (
                     <img
                       src={notif.from.profilePhoto}
@@ -326,7 +342,8 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
             setUnreadCount(Array.isArray(notifications) ? notifications.length : 0)
           }
         }}
-        className="relative p-2 hover:bg-pink-600 rounded-full transition"
+        className="relative p-2 hover:bg-black hover:bg-opacity-10 rounded-full transition"
+        style={{color: '#B8860B'}}
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />

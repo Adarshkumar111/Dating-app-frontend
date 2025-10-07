@@ -45,19 +45,19 @@ export default function ForgetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
+    <div className="min-h-screen bg-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-premium-gradient rounded-full flex items-center justify-center mb-6 animate-pulse-glow">
-            <span className="text-2xl font-bold text-white">🔑</span>
+          <div className="mx-auto h-16 w-16 rounded-full flex items-center justify-center mb-6" style={{backgroundColor: '#F5DEB3'}}>
+            <span className="text-2xl font-bold" style={{color: '#B8860B'}}>🔑</span>
           </div>
-          <h2 className="text-3xl font-bold text-blue-800 mb-2">Reset Password</h2>
+          <h2 className="text-3xl font-bold mb-2" style={{color: '#B8860B'}}>Reset Password</h2>
           <p className="text-gray-600">
             {step === 1 ? "Enter your email to receive a reset code" : "Enter the code and your new password"}
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-6 transform hover:scale-105 transition-all duration-300">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-6 transition-all duration-300" style={{border: '2px solid #D4AF37'}}>
           {info && (
             <div className={`p-4 rounded-lg text-sm ${
               info.includes('successful') || info.includes('sent') 
@@ -71,7 +71,7 @@ export default function ForgetPasswordPage() {
           {step === 1 && (
             <form onSubmit={handleRequestOTP} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-blue-800 mb-2">Email Address</label>
+                <label className="block text-sm font-medium mb-2" style={{color: '#B8860B'}}>Email Address</label>
                 <input
                   name='email'
                   type='email'
@@ -103,7 +103,7 @@ export default function ForgetPasswordPage() {
           {step === 2 && (
             <form onSubmit={handleResetPassword} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-blue-800 mb-2">Verification Code</label>
+                <label className="block text-sm font-medium mb-2" style={{color: '#B8860B'}}>Verification Code</label>
                 <input
                   name='otp'
                   placeholder='Enter 6-digit code'
@@ -116,7 +116,7 @@ export default function ForgetPasswordPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-blue-800 mb-2">New Password</label>
+                <label className="block text-sm font-medium mb-2" style={{color: '#B8860B'}}>New Password</label>
                 <input
                   type='password'
                   name='newPassword'
@@ -129,7 +129,7 @@ export default function ForgetPasswordPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-blue-800 mb-2">Confirm New Password</label>
+                <label className="block text-sm font-medium mb-2" style={{color: '#B8860B'}}>Confirm New Password</label>
                 <input
                   type='password'
                   name='confirmPassword'
@@ -165,7 +165,8 @@ export default function ForgetPasswordPage() {
                   setNewPassword('')
                   setConfirmPassword('')
                 }}
-                className="w-full text-pink-500 hover:text-pink-600 font-medium transition-colors duration-300 text-sm"
+                className="w-full font-medium transition-colors duration-300 text-sm"
+                style={{color: '#B8860B'}}
               >
                 ← Back to email entry
               </button>
@@ -177,7 +178,8 @@ export default function ForgetPasswordPage() {
               Remember your password?{' '}
               <Link 
                 to='/login' 
-                className="text-pink-500 font-semibold hover:text-pink-600 transition-colors duration-300"
+                className="font-semibold transition-colors duration-300"
+                style={{color: '#B8860B'}}
               >
                 Sign In
               </Link>

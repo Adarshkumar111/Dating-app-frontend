@@ -73,7 +73,19 @@ export default function DashboardPage() {
       if (tab === 'friends') loadFriends();
     }, 10000);
     
-    return () => clearInterval(interval);
+    // Listen for request status changes to refresh dashboard
+    const handleRequestUpdate = () => {
+      if (tab === 'dashboard') {
+        loadUsers();
+      }
+    };
+    
+    window.addEventListener('requestStatusChanged', handleRequestUpdate);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('requestStatusChanged', handleRequestUpdate);
+    };
   }, [tab]);
 
   // Recalculate unread total when friends list changes (safety net)
@@ -174,14 +186,14 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <div className="max-w-6xl mx-auto px-4 py-6 md:pb-0">
         {/* Fixed header section on desktop */}
-        <div className="md:sticky md:top-20 md:z-20 md:bg-gray-50 md:pb-4">
+        <div className="md:sticky md:top-20 md:z-20 md:bg-white md:pb-4">
           {/* Header (only on dashboard tab) - hidden on mobile */}
           {tab === 'dashboard' && (
             <div className="text-center mb-4 hidden md:block">
-              <h1 className="text-3xl font-bold text-blue-800 mb-2">Welcome to M Nikah</h1>
+              <h1 className="text-3xl font-bold mb-2" style={{color: '#B8860B'}}>Welcome to M Nikah</h1>
               <p className="text-gray-600">Find your perfect match</p>
             </div>
           )}
@@ -190,21 +202,23 @@ export default function DashboardPage() {
           <div className="hidden md:flex justify-center gap-3 mb-8 relative">
           <button
             onClick={() => setTab('dashboard')}
-            className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-              tab === 'dashboard' 
-                ? 'bg-premium-gradient text-white shadow-xl' 
-                : 'bg-white text-blue-800 hover:bg-blue-50 shadow-lg border border-blue-200'
-            }`}
+            className="px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-xl"
+            style={{
+              backgroundColor: tab === 'dashboard' ? '#B8860B' : 'white',
+              color: tab === 'dashboard' ? 'white' : '#B8860B',
+              border: tab === 'dashboard' ? 'none' : '2px solid #D4AF37'
+            }}
           >
             🔍 Dashboard
           </button>
           <button
             onClick={() => setTab('friends')}
-            className={`relative px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-              tab === 'friends' 
-                ? 'bg-premium-gradient text-white shadow-xl' 
-                : 'bg-white text-blue-800 hover:bg-blue-50 shadow-lg border border-blue-200'
-            }`}
+            className="relative px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-xl"
+            style={{
+              backgroundColor: tab === 'friends' ? '#B8860B' : 'white',
+              color: tab === 'friends' ? 'white' : '#B8860B',
+              border: tab === 'friends' ? 'none' : '2px solid #D4AF37'
+            }}
             aria-label="Messages"
           >
             💬 Messages
@@ -219,32 +233,33 @@ export default function DashboardPage() {
             <div className="relative">
               <button
                 onClick={() => setShowFilters((s) => !s)}
-                className="px-8 py-3 rounded-xl font-semibold bg-white text-blue-800 shadow-lg border border-blue-200 hover:bg-blue-50 transition-all duration-300 transform hover:scale-105"
+                className="px-8 py-3 rounded-xl font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
+                style={{backgroundColor: 'white', color: '#B8860B', border: '2px solid #D4AF37'}}
                 aria-label="Filters"
               >
-                ⚙️ Filters
+                Filters
               </button>
               {showFilters && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowFilters(false)} />
-                  <div className="absolute right-0 mt-2 w-[min(90vw,520px)] bg-white border border-blue-200 rounded-xl shadow-md p-2 z-50">
+                  <div className="absolute right-0 mt-2 w-[min(90vw,520px)] bg-white rounded-xl shadow-md p-2 z-50" style={{border: '2px solid #D4AF37'}}>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       {enabledFilters.age && (
                         <div className="flex items-center gap-2">
-                          <input type="number" placeholder="Age min" value={filters.ageMin} onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
+                          <input type="number" placeholder="Age min" value={filters.ageMin} onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
                           <span className="text-gray-500">-</span>
-                          <input type="number" placeholder="Age max" value={filters.ageMax} onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
+                          <input type="number" placeholder="Age max" value={filters.ageMax} onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
                         </div>
                       )}
                       {enabledFilters.education && (
-                        <input type="text" placeholder="Education" value={filters.education} onChange={(e) => setFilters({ ...filters, education: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
+                        <input type="text" placeholder="Education" value={filters.education} onChange={(e) => setFilters({ ...filters, education: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
                       )}
                       {enabledFilters.occupation && (
-                        <input type="text" placeholder="Occupation" value={filters.occupation} onChange={(e) => setFilters({ ...filters, occupation: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
+                        <input type="text" placeholder="Occupation" value={filters.occupation} onChange={(e) => setFilters({ ...filters, occupation: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
                       )}
                     </div>
                     <div className="mt-2 flex gap-2 justify-end">
-                      <button onClick={() => { setShowFilters(false); loadUsers(); }} className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">Apply</button>
+                      <button onClick={() => { setShowFilters(false); loadUsers(); }} className="px-3 py-1.5 text-white rounded-lg text-sm" style={{backgroundColor: '#B8860B'}}>Apply</button>
                       <button onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', occupation: '', name: '' }); setShowFilters(false); setLoading(true); loadUsers(); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Reset</button>
                     </div>
                   </div>
@@ -260,32 +275,33 @@ export default function DashboardPage() {
             <div className="relative">
               <button
                 onClick={() => setShowFilters((s) => !s)}
-                className="px-3 py-2 rounded-xl font-semibold bg-white text-blue-800 shadow border border-blue-200 hover:bg-blue-50 text-sm"
+                className="px-3 py-2 rounded-xl font-semibold shadow text-sm"
+                style={{backgroundColor: 'white', color: '#B8860B', border: '2px solid #D4AF37'}}
                 aria-label="Filters"
               >
-                ⚙️ Filters
+                Filters
               </button>
               {showFilters && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowFilters(false)} />
-                  <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-[85vw] max-w-sm bg-white border border-blue-200 rounded-xl shadow-md p-3 z-50">
+                  <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-[85vw] max-w-sm bg-white rounded-xl shadow-md p-3 z-50" style={{border: '2px solid #D4AF37'}}>
                     <div className="grid grid-cols-1 gap-2">
                       {enabledFilters.age && (
                         <div className="flex items-center gap-2">
-                          <input type="number" placeholder="Age min" value={filters.ageMin} onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
+                          <input type="number" placeholder="Age min" value={filters.ageMin} onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
                           <span className="text-gray-500">-</span>
-                          <input type="number" placeholder="Age max" value={filters.ageMax} onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
+                          <input type="number" placeholder="Age max" value={filters.ageMax} onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
                         </div>
                       )}
                       {enabledFilters.education && (
-                        <input type="text" placeholder="Education" value={filters.education} onChange={(e) => setFilters({ ...filters, education: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
+                        <input type="text" placeholder="Education" value={filters.education} onChange={(e) => setFilters({ ...filters, education: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
                       )}
                       {enabledFilters.occupation && (
-                        <input type="text" placeholder="Occupation" value={filters.occupation} onChange={(e) => setFilters({ ...filters, occupation: e.target.value })} className="w-full px-2.5 py-1.5 border rounded-lg text-sm" />
+                        <input type="text" placeholder="Occupation" value={filters.occupation} onChange={(e) => setFilters({ ...filters, occupation: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
                       )}
                     </div>
                     <div className="mt-2 flex gap-2 justify-end">
-                      <button onClick={() => { setShowFilters(false); loadUsers(); }} className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">Apply</button>
+                      <button onClick={() => { setShowFilters(false); loadUsers(); }} className="px-3 py-1.5 text-white rounded-lg text-sm" style={{backgroundColor: '#B8860B'}}>Apply</button>
                       <button onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', occupation: '', name: '' }); setShowFilters(false); setLoading(true); loadUsers(); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Reset</button>
                     </div>
                   </div>
@@ -297,9 +313,9 @@ export default function DashboardPage() {
 
           {/* Dashboard Search (below tabs) */}
           {tab === 'dashboard' && (
-            <div className="fixed md:static top-[86px] md:top-auto left-0 right-0 md:left-auto md:right-auto z-30 px-4 md:px-0 bg-gray-50 pb-2 md:pb-0 mb-0 md:mb-4">
+            <div className="fixed md:static top-[86px] md:top-auto left-0 right-0 md:left-auto md:right-auto z-30 px-4 md:px-0 bg-white pb-2 md:pb-0 mb-0 md:mb-4">
               <div className="relative">
-                <div className="flex items-center bg-white border border-blue-200 rounded-xl shadow-sm px-3 py-1">
+                <div className="flex items-center bg-white rounded-xl shadow-sm px-3 py-1" style={{border: '2px solid #D4AF37'}}>
                   <input
                     type="text"
                     placeholder="Search by name..."
@@ -311,7 +327,8 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={loadUsers}
-                      className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+                      className="px-3 py-1.5 text-white rounded-lg text-sm"
+                      style={{backgroundColor: '#B8860B'}}
                       aria-label="Search"
                     >
                       Search
@@ -336,7 +353,7 @@ export default function DashboardPage() {
                 {/* Header: Avatar + Name + view link */}
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold">
+                    <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold" style={{backgroundColor: '#B8860B'}}>
                       {u.profilePhoto ? (
                         <img src={u.profilePhoto} alt="profile" className="w-10 h-10 rounded-full object-cover" />
                       ) : (
@@ -344,18 +361,18 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <div>
-                      <h3 className="text-blue-800 font-semibold leading-5">{u.name}</h3>
+                      <h3 className="font-semibold leading-5" style={{color: '#B8860B'}}>{u.name}</h3>
                       {u.age && (
                         <p className="text-xs text-gray-500">{u.age} yrs{u.location ? ` • ${u.location}` : ''}</p>
                       )}
                     </div>
                   </div>
-                  <Link to={`/profile/${u._id}`} className="text-blue-600 text-sm font-medium hover:underline">View</Link>
+                  <Link to={`/profile/${u._id}`} className="text-sm font-medium hover:underline" style={{color: '#B8860B'}}>View</Link>
                 </div>
 
                 {/* Description */}
                 {u.about && (
-                  <p className="text-sm text-blue-700/80 mb-3 line-clamp-2">
+                  <p className="text-sm text-gray-700 mb-3 line-clamp-2">
                     {u.about}
                   </p>
                 )}
@@ -364,17 +381,17 @@ export default function DashboardPage() {
                 {(u.education || u.maritalStatus || u.occupation) && (
                   <div className="flex flex-wrap items-center gap-2 mb-3">
                     {u.education && (
-                      <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-medium">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-medium" style={{backgroundColor: 'white', color: '#B8860B', border: '1px solid #D4AF37'}}>
                         🎓 {u.education}
                       </span>
                     )}
                     {u.occupation && (
-                      <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-medium">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-medium" style={{backgroundColor: 'white', color: '#B8860B', border: '1px solid #D4AF37'}}>
                         💼 {u.occupation}
                       </span>
                     )}
                     {u.maritalStatus && (
-                      <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-medium capitalize">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-medium capitalize" style={{backgroundColor: 'white', color: '#B8860B', border: '1px solid #D4AF37'}}>
                         💍 {String(u.maritalStatus).replace('_',' ')}
                       </span>
                     )}
@@ -386,7 +403,8 @@ export default function DashboardPage() {
                   {u.requestStatus === 'none' && (
                     <button
                       onClick={() => handleFollow(u._id)}
-                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+                      className="px-4 py-2 text-white rounded-lg text-sm"
+                      style={{backgroundColor: '#B8860B'}}
                     >
                       Request
                     </button>
@@ -394,14 +412,15 @@ export default function DashboardPage() {
                   {u.requestStatus === 'pending' && u.requestDirection === 'sent' && (
                     <button
                       onClick={() => handleCancelRequest(u._id)}
-                      className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm border border-blue-200 hover:bg-blue-200"
+                      className="px-4 py-2 rounded-lg text-sm"
+                      style={{backgroundColor: 'white', color: '#B8860B', border: '2px solid #D4AF37'}}
                     >
                       Requested (Cancel)
                     </button>
                   )}
                   {u.requestStatus === 'accepted' && (
                     <div className="flex items-center gap-2">
-                      <Link to={`/chat/${u._id}`} className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">
+                      <Link to={`/chat/${u._id}`} className="px-4 py-2 text-white rounded-lg text-sm" style={{backgroundColor: '#B8860B'}}>
                         Chat
                       </Link>
                       <button onClick={() => handleUnfollow(u._id)} className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200">
@@ -415,8 +434,7 @@ export default function DashboardPage() {
             
             {users.length === 0 && (
               <div className="col-span-full text-center py-20">
-                <div className="text-6xl mb-4">💝</div>
-                <h3 className="text-xl font-semibold text-blue-800 mb-2">No More Profiles</h3>
+                <h3 className="text-xl font-semibold mb-2" style={{color: '#B8860B'}}>No More Profiles</h3>
                 <p className="text-gray-500">You've seen all available profiles!</p>
               </div>
             )}
@@ -428,21 +446,22 @@ export default function DashboardPage() {
           friends.length === 0 ? (
             <div className="text-center py-20">
               <div className="text-6xl mb-6">💬</div>
-              <h3 className="text-2xl font-bold text-blue-800 mb-3">No Messages Yet</h3>
+              <h3 className="text-2xl font-bold mb-3" style={{color: '#B8860B'}}>No Messages Yet</h3>
               <p className="text-gray-600 mb-6">Start following people from the dashboard tab to begin conversations!</p>
               <button
                 onClick={() => setTab('dashboard')}
-                className="btn-accent"
+                className="px-6 py-3 text-white font-semibold rounded-lg transition"
+                style={{backgroundColor: '#B8860B'}}
               >
-                🔍 Start dashboarding
+                🔍 Start Discovering
               </button>
             </div>
           ) : (
             <>
               {/* Friends-only search bar (matches dashboard search UI) - reduced height */}
-              <div className="fixed md:static top-[86px] md:top-auto left-0 right-0 md:left-auto md:right-auto z-30 px-4 md:px-0 bg-gray-50 pb-2 md:pb-0 mb-0 md:mb-4">
+              <div className="fixed md:static top-[86px] md:top-auto left-0 right-0 md:left-auto md:right-auto z-30 px-4 md:px-0 bg-white pb-2 md:pb-0 mb-0 md:mb-4">
                 <div className="relative">
-                  <div className="flex items-center bg-white border border-blue-200 rounded-xl shadow-sm px-3 py-1">
+                  <div className="flex items-center bg-white rounded-xl shadow-sm px-3 py-1" style={{border: '2px solid #D4AF37'}}>
                     <input
                       type="text"
                       placeholder="Search by name..."
@@ -454,7 +473,8 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => { /* same UI as dashboard; filtering already live */ }}
-                        className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+                        className="px-3 py-1.5 text-white rounded-lg text-sm"
+                        style={{backgroundColor: '#B8860B'}}
                         aria-label="Search friends"
                       >
                         Search
@@ -470,11 +490,12 @@ export default function DashboardPage() {
                 <div 
                   key={friend._id} 
                   onClick={() => navigate(`/chat/${friend._id}`)}
-                  className="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transform hover:scale-105 transition-all duration-300 cursor-pointer animate-fade-in"
+                  className="bg-white rounded-2xl shadow-sm md:shadow-md overflow-hidden hover:shadow-md md:hover:shadow-lg transform hover:scale-[1.02] transition-all duration-300 cursor-pointer animate-fade-in"
+                  style={{border: '1px solid #F5DEB3'}}
                 >
                   <div className="p-6">
                     <div className="flex items-center mb-4">
-                      <div className="w-16 h-16 rounded-full bg-premium-gradient flex items-center justify-center text-white font-bold text-2xl flex-shrink-0 relative">
+                      <div className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-2xl flex-shrink-0 relative" style={{backgroundColor: '#B8860B'}}>
                         {friend.profilePhoto ? (
                           <img 
                             src={friend.profilePhoto} 
@@ -492,7 +513,7 @@ export default function DashboardPage() {
                       </div>
 
                       <div className="ml-4 flex-1 min-w-0">
-                        <div className="font-bold text-lg text-blue-800 truncate mb-1">
+                        <div className="font-bold text-lg truncate mb-1" style={{color: '#B8860B'}}>
                           {friend.name}
                         </div>
                         {friend.age && friend.location && (
@@ -505,12 +526,12 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center text-blue-600">
+                      <div className="flex items-center" style={{color: '#B8860B'}}>
                         <BsChatDots className="text-xl mr-2" />
                         <span className="text-sm font-medium">Start Chat</span>
                       </div>
                       {friend.unreadCount > 0 && (
-                        <div className="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-xs font-semibold">
+                        <div className="px-3 py-1 rounded-full text-xs font-semibold" style={{backgroundColor: '#F5F5DC', color: '#B8860B'}}>
                           {friend.unreadCount} new message{friend.unreadCount > 1 ? 's' : ''}
                         </div>
                       )}
