@@ -1,7 +1,11 @@
 import api from './http.js'
 
 export async function signup(formData) {
-  const res = await api.post('/auth/signup', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+  const res = await api.post('/auth/signup', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    // Signup may take longer in production due to image upload/email
+    timeout: 60000
+  })
   return res.data
 }
 
