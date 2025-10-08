@@ -43,7 +43,7 @@ export default function AdminPanelPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-[#FFF8E7]">
       <div className="max-w-7xl mx-auto px-2 md:px-4 py-4 md:py-8">
         {/* Tabs - Responsive */}
         <div className="mb-4 md:mb-6 flex gap-2 flex-wrap">
