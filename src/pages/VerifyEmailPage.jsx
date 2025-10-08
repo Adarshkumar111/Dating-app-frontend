@@ -46,7 +46,8 @@ export default function VerifyEmailPage() {
       await resendEmailOtp(email)
       toast.success('New OTP sent to your email')
     } catch (error) {
-      toast.error('Failed to resend OTP')
+      const msg = error?.response?.data?.message || 'Failed to resend OTP'
+      toast.error(msg)
     }
   }
 

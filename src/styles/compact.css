@@ -1,12 +1,18 @@
 /* Global compact blue/white theme overrides */
 :root {
-  --blue-50: #eff6ff;
-  --blue-100: #dbeafe;
-  --blue-200: #bfdbfe;
-  --blue-500: #3b82f6;
-  --blue-600: #2563eb;
-  --text-blue: #1d4ed8;
+  /* Golden theme palette (slightly dark) */
+  --blue-50: #FFF8E7;   /* light golden */
+  --blue-100: #FFF3D6;  /* softer golden */
+  --blue-200: #FFE7AD;  /* pale gold */
+  --blue-500: #D4A017;  /* goldenrod */
+  --blue-600: #B8860B;  /* dark goldenrod */
+  --text-blue: #8B6B00; /* dark mustard for headings */
+  /* Navbar heights */
+  --nav-h-mobile: 64px;
+  --nav-h-desktop: 80px;
 }
+/* Global box sizing for layout stability */
+*, *::before, *::after { box-sizing: border-box; }
 
 /* App wrappers */
 .app-blue { background-color: var(--blue-50); }
@@ -52,3 +58,50 @@
 
 /* Navbar and banners minimal height */
 .app-compact .navbar, .app-compact [data-role="banner"] { min-height: 48px; }
+
+/* ===== Navbar layout fixes ===== */
+/* Force the Navbar to stick to top without extra offset */
+.app-compact nav.fixed { top: 0 !important; }
+
+/* Ensure page content starts below the navbar (no JSX spacer needed) */
+.app-compact { padding-top: var(--nav-h-mobile); }
+@media (min-width: 768px) {
+  .app-compact { padding-top: var(--nav-h-desktop); }
+}
+
+/* Remove nav padding for pages that manage their own layout (e.g., dashboard) */
+.app-compact.no-nav-pad { padding-top: 0 !important; }
+
+/* Allow pages (e.g., admin) to scroll under the fixed nav when content is taller */
+.app-compact { overflow: visible; }
+
+/* ================= Waiting Page Tweaks ================= */
+/* Prevent scroll and apply light golden bg + black text for the waiting screen container */
+.app-compact .min-h-screen.bg-gray-100.flex.items-center.justify-center.p-4 {
+  height: 100dvh !important;
+  overflow: hidden !important;
+  background-color: #FFF8E7 !important; /* light golden */
+  color: #000 !important; /* black text */
+}
+
+/* Override gradient header inside the waiting card to light golden */
+.app-compact .bg-gradient-to-br.from-gray-50.to-blue-50 {
+  background: #FFF3D6 !important; /* slightly lighter golden */
+}
+
+/* Ensure any blue text variants in waiting card read as black */
+.app-compact .text-blue-400,
+.app-compact .text-blue-500,
+.app-compact .text-blue-800 { color: #000 !important; }
+
+/* Mobile needs extra top padding to clear fixed navbar/banners; desktop should not */
+.dashboard-scroll { height: calc(100vh - 180px); padding-top: 144px; }
+@media (min-width: 768px) {
+  .dashboard-scroll { padding-top: 0; }
+}
+
+/* Admin page scroll area (tabs remain visible, body scrolls) */
+.admin-scroll { height: calc(100vh - 180px); padding-top: 120px; }
+@media (min-width: 768px) {
+  .admin-scroll { padding-top: 0; }
+}

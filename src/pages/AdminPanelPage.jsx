@@ -43,7 +43,7 @@ export default function AdminPanelPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
       <div className="max-w-7xl mx-auto px-2 md:px-4 py-4 md:py-8">
         {/* Tabs - Responsive */}
         <div className="mb-4 md:mb-6 flex gap-2 flex-wrap">
@@ -105,15 +105,17 @@ export default function AdminPanelPage() {
           </button>
         </div>
 
-        {/* Tab bodies */}
-        {tab === 'users' && <AdminUsers />}
-        {tab === 'spammers' && <AdminSpammers />}
-        {tab === 'settings' && <AdminSettings />}
-        {tab === 'premium' && <AdminPremiumPlans />}
-        {tab === 'payments' && <AdminPayments />}
-        {tab === 'edits' && <AdminProfileEdits />}
-        {tab === 'help' && <AdminHelpRequests />}
-        {tab === 'notifications' && <AdminNotifications />}
+        {/* Tab bodies in a scrollable area (mobile gets top padding via CSS) */}
+        <div className="admin-scroll overflow-y-auto">
+          {tab === 'users' && <AdminUsers />}
+          {tab === 'spammers' && <AdminSpammers />}
+          {tab === 'settings' && <AdminSettings />}
+          {tab === 'premium' && <AdminPremiumPlans />}
+          {tab === 'payments' && <AdminPayments />}
+          {tab === 'edits' && <AdminProfileEdits />}
+          {tab === 'help' && <AdminHelpRequests />}
+          {tab === 'notifications' && <AdminNotifications />}
+        </div>
       </div>
     </div>
   );

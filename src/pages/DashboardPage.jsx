@@ -383,7 +383,7 @@ export default function DashboardPage() {
         
         {/* dashboard Tab */}
         {tab === 'dashboard' && (
-          <div className="overflow-y-auto md:flex-1 md:pr-1 md:pt-0" style={{ height: 'calc(100vh - 180px)', paddingTop: '144px' }}>
+          <div className="dashboard-scroll overflow-y-auto md:flex-1 md:pr-1 md:pt-0">
             <div className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4">
             {users.map(u => {
               const isPinned = (u.displayPriority || 0) > 0;

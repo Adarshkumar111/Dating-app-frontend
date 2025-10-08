@@ -94,12 +94,12 @@ export default function Navbar(){
   
   return (
     <nav className="fixed top-2 md:top-4 left-0 right-0 z-50">
-      <div className="max-w-7xl mx-auto px-2 md:px-4 relative">
+      <div className="max-w-7xl mx-auto px-2 md:px-4 relative ">
         <div className="shadow-xl rounded-2xl relative" style={{backgroundColor: '#F5F5DC'}}>
           <div className="px-4 py-3 md:py-4">
             <div className="flex justify-between items-center">
           {/* Logo */}
-          <Link to={user.isAdmin ? '/admin' : '/dashboard'} className="font-bold text-2xl hover:opacity-90 transition-all duration-300 transform hover:scale-105" style={{color: '#B8860B'}}>
+          <Link to={user.isAdmin ? '/admin' : '/dashboard'} className="font-bold text-2xl hover:opacity-90 transition-all duration-300 transform hover:scale-105 " style={{color: '#B8860B'}}>
             <span style={{color: '#B8860B'}}>M</span> Nikah
           </Link>
 

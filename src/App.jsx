@@ -37,6 +37,15 @@ export default function App() {
   const { token, user } = useAuth()
   const location = useLocation()
   const isDashboardRoute = (location.pathname || '').startsWith('/dashboard')
+  const path = (location.pathname || '')
+  const isNoNavPadRoute = (
+    isDashboardRoute ||
+    path === '/login' ||
+    path === '/signup' ||
+    path === '/waiting' ||
+    path === '/verify-email' ||
+    path === '/forget-password'
+  )
   
   // Determine default route based on user type
   const getDefaultRoute = () => {
@@ -46,11 +55,11 @@ export default function App() {
   }
   
   return (
-    <div className={`  min-h-screen app-blue app-compact ${isDashboardRoute ? 'overflow-hidden' : ''}`} style={{ backgroundColor: '#FFF8E7' }}>
+    <div className={`min-h-screen app-compact ${isNoNavPadRoute ? 'no-nav-pad' : ''} ${isDashboardRoute ? 'overflow-hidden' : ''}`} style={{ backgroundColor: '#FFF8E7' }}>
       {token && <Navbar />}
       {/* Top spacer for all non-dashboard routes to offset fixed navbar height */}
       {token && !isDashboardRoute && (
-        <div className="h-16 md:h-20" />
+        <div className="" />
       )}
       {token && <MessageNotificationBanner />}
       {token && <MobileBottomBar />}
