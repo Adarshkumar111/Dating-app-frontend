@@ -59,6 +59,7 @@ export default function App() {
       <ToastContainer position="top-center" autoClose={2500} hideProgressBar closeOnClick pauseOnHover={false} theme="colored" />
     <Routes>
       <Route path="/" element={<Navigate to={getDefaultRoute()} />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/forget-password" element={<ForgetPasswordPage />} />
