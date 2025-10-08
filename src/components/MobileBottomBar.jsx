@@ -25,7 +25,10 @@ export default function MobileBottomBar() {
 
   const go = (path) => {
     setOpenSheet(false)
-    if (loc.pathname !== path) nav(path)
+    // Compare full location (pathname + search) so switching between
+    // /dashboard?tab=messages and /dashboard triggers navigation
+    const current = `${loc.pathname}${loc.search || ''}`
+    if (current !== path) nav(path)
   }
 
   const Item = ({ active, onClick, children }) => (
