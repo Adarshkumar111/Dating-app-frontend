@@ -6,7 +6,7 @@ const listeners = new Map();
 export const connectSocket = (userId) => {
   if (socket?.connected) return socket;
   
-  socket = io('http://localhost:5000', {
+  socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionAttempts: 5

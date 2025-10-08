@@ -13,7 +13,7 @@ export default function MessageNotificationBanner() {
     if (!user) return
 
     // Connect to Socket.io for global message notifications
-    socketRef.current = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
+    socketRef.current = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
       transports: ['websocket'],
       auth: { token: localStorage.getItem('token') }
     })

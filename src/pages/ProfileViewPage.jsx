@@ -155,7 +155,7 @@ export default function ProfileViewPage() {
     })()
     // Setup real-time updates for photo request state
     if (currentUser?.id) {
-      socketRef.current = io('http://localhost:5000')
+      socketRef.current = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000')
       const channel = `user:${currentUser.id}`
       socketRef.current.on(channel, (payload) => {
         if (!payload || !payload.kind) return
