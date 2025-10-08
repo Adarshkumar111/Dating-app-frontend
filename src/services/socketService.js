@@ -39,7 +39,7 @@ export const connectSocket = (userId) => {
     notifyListeners('adminPendingEdit', payload);
   });
 
-  socket.on('admin:request', (payload) => {
+  socket.on('adminRequest', (payload) => {
     console.log('👥 Admin: Request event', payload);
     notifyListeners('adminRequest', payload);
   });

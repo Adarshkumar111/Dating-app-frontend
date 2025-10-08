@@ -3,6 +3,7 @@ import { listHelpRequests, getHelpRequestById, respondHelpRequest, deleteHelpReq
 import { MdSearch, MdCheck, MdClose, MdChat, MdDelete } from 'react-icons/md'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { onSocketEvent } from '../../services/socketService.js'
 
 export default function AdminHelpRequests() {
   const [status, setStatus] = useState('pending')
@@ -26,7 +27,19 @@ export default function AdminHelpRequests() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [status])
+  useEffect(() => { 
+    load()
+    
+    // Listen for socket events to refresh in real-time
+    const unsubscribe = onSocketEvent('adminRequest', (payload) => {
+      if (payload.kind === 'help:newMessage' || payload.kind === 'help:messagesSeen' || 
+          payload.kind === 'help:new' || payload.kind === 'help:update' || payload.kind === 'help:deleted') {
+        load(); // Refresh list immediately
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [status])
 
   const openDetail = async (id) => {
     setSelectedId(id)
@@ -96,13 +109,23 @@ export default function AdminHelpRequests() {
               <div className="p-4 text-sm text-gray-500">No items</div>
             )}
             {items.map(it => (
-              <button key={it._id} onClick={()=>openDetail(it._id)} className={`w-full text-left p-3 hover:bg-gray-50 ${selectedId===it._id?'bg-gray-50':''}`}>
+              <button key={it._id} onClick={()=>openDetail(it._id)} className={`w-full text-left p-3 hover:bg-gray-50 ${selectedId===it._id?'bg-gray-50':''} relative`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-600 text-white flex items-center justify-center font-bold">
+                  <div className="w-10 h-10 rounded-full bg-amber-600 text-white flex items-center justify-center font-bold relative">
                     {it.from?.name?.charAt(0) || 'U'}
+                    {it.unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full border-2 border-white animate-pulse"></span>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold truncate" style={{color:'#2C2C2C'}}>{it.from?.name || 'Unknown'}</div>
+                    <div className="font-semibold truncate flex items-center gap-2" style={{color:'#2C2C2C'}}>
+                      {it.from?.name || 'Unknown'}
+                      {it.unreadCount > 0 && (
+                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">
+                          {it.unreadDisplay || it.unreadCount}
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs text-gray-500">{new Date(it.createdAt).toLocaleString()}</div>
                   </div>
                   <span className={`text-xs px-2 py-1 rounded-full ${it.type==='help' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>Help</span>
@@ -140,9 +163,27 @@ export default function AdminHelpRequests() {
                     {selected.status==='resolved' && (
                       <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">Closed</span>
                     )}
+                    {selected.status==='approved' && selected.unreadCount > 0 && (
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
+              {(selected.totalMessages > 0 || selected.unreadCount > 0) && (
+                <div className="p-2 bg-blue-50 rounded text-sm">
+                  <div className="text-blue-700 font-medium flex items-center gap-2">
+                    💬 Messages: {selected.totalDisplay || selected.totalMessages || 0}
+                    {selected.unreadCount > 0 && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">
+                        {selected.unreadDisplay || selected.unreadCount} unread
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
               <div>
                 <div className="text-sm text-gray-500 mb-1">Description</div>
                 <div className="p-3 bg-white border rounded min-h-[80px] text-sm whitespace-pre-wrap">{selected.issueDescription || '—'}</div>

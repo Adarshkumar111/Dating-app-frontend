@@ -8,24 +8,37 @@ import AdminPremiumPlans from './admin/AdminPremiumPlans.jsx';
 import AdminPayments from './admin/AdminPayments.jsx';
 import AdminProfileEdits from './admin/AdminProfileEdits.jsx';
 import AdminHelpRequests from './admin/AdminHelpRequests.jsx';
-import { listHelpRequests } from '../services/helpService.js';
+import { getHelpRequestStats } from '../services/helpService.js';
+import { onSocketEvent } from '../services/socketService.js';
 
 export default function AdminPanelPage() {
   const [tab, setTab] = useState('users');
-  const [pendingHelpCount, setPendingHelpCount] = useState(0);
+  const [helpStats, setHelpStats] = useState({ totalCount: 0, pendingCount: 0, totalUnreadMessages: 0, totalDisplay: 0 });
 
   useEffect(() => {
     const load = async () => {
       try {
-        const items = await listHelpRequests('pending');
-        setPendingHelpCount(Array.isArray(items) ? items.length : 0);
+        const stats = await getHelpRequestStats();
+        setHelpStats(stats);
       } catch (_) {
-        setPendingHelpCount(0);
+        setHelpStats({ totalCount: 0, pendingCount: 0, totalUnreadMessages: 0, totalDisplay: 0 });
       }
     };
     load();
-    const i = setInterval(load, 60000);
-    return () => clearInterval(i);
+    
+    // Listen for socket events to refresh in real-time
+    const unsubscribe = onSocketEvent('adminRequest', (payload) => {
+      if (payload.kind === 'help:newMessage' || payload.kind === 'help:messagesSeen' || 
+          payload.kind === 'help:new' || payload.kind === 'help:update') {
+        load(); // Refresh stats immediately
+      }
+    });
+    
+    const i = setInterval(load, 60000); // Backup refresh every 60 seconds
+    return () => {
+      clearInterval(i);
+      unsubscribe();
+    };
   }, []);
 
   return (
@@ -71,13 +84,16 @@ export default function AdminPanelPage() {
           </button>
           <button
             onClick={() => setTab('help')}
-            className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition ${tab === 'help' ? 'bg-amber-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition relative ${tab === 'help' ? 'bg-amber-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
           >
             ❓ Help Requests
-            {pendingHelpCount > 0 && (
+            {helpStats.totalCount > 0 && (
               <span className="ml-2 inline-flex items-center justify-center text-xs font-bold rounded-full px-2 py-0.5 bg-red-600 text-white">
-                {pendingHelpCount}
+                {helpStats.totalDisplay || helpStats.totalCount}
               </span>
+            )}
+            {helpStats.totalUnreadMessages > 0 && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-pulse"></span>
             )}
           </button>
         </div>

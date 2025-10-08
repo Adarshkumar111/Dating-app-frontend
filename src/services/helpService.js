@@ -28,3 +28,8 @@ export const getHelpRequestById = async (id) => {
 export const deleteHelpRequest = async (id) => {
   return (await api.delete(`/help/admin/${id}`)).data
 }
+
+// Admin: get help request stats (pending count + unread messages)
+export const getHelpRequestStats = async () => {
+  return (await api.get('/help/admin/stats')).data
+}
