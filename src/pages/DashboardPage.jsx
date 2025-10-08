@@ -385,8 +385,26 @@ export default function DashboardPage() {
         {tab === 'dashboard' && (
           <div className="overflow-y-auto md:flex-1 md:pr-1 md:pt-0" style={{ height: 'calc(100vh - 180px)', paddingTop: '144px' }}>
             <div className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4">
-            {users.map(u => (
-              <div key={u._id} className="col-span-1 bg-white shadow-md rounded-xl p-4 min-w-0">
+            {users.map(u => {
+              const isPinned = (u.displayPriority || 0) > 0;
+              return (
+              <div 
+                key={u._id} 
+                className={`col-span-1 bg-white shadow-md rounded-xl p-4 min-w-0 relative ${
+                  isPinned ? 'ring-2 ring-amber-400 shadow-lg animate-subtle-shine' : ''
+                }`}
+                style={isPinned ? {
+                  background: 'linear-gradient(135deg, #FFF9E6 0%, #FFFFFF 50%, #FFF9E6 100%)',
+                  boxShadow: '0 4px 15px rgba(218, 165, 32, 0.3)'
+                } : {}}
+              >
+                {/* Pinned Badge */}
+                {isPinned && (
+                  <div className="absolute top-2 right-2 bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md flex items-center gap-1">
+                    <span>⭐</span>
+                    <span>Featured</span>
+                  </div>
+                )}
                 {/* Header: Avatar + Name + view link */}
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-3">
@@ -475,7 +493,8 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
 
             
 
