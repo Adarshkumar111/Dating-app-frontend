@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdSearch, MdVisibility, MdDelete, MdCheckCircle } from 'react-icons/md';
-import { listUsers, approveUser, deleteUser, searchUsers } from '../../services/adminService.js';
+import { MdSearch, MdVisibility, MdDelete, MdCheckCircle, MdPushPin } from 'react-icons/md';
+import { listUsers, approveUser, deleteUser, searchUsers, setUserPriority } from '../../services/adminService.js';
+import { toast } from 'react-toastify';
 
 export default function AdminUsers() {
   const navigate = useNavigate();
@@ -47,6 +48,12 @@ export default function AdminUsers() {
     } else if (filter === 'female') {
       filteredUsers = userData.filter(user => user.gender === 'female');
     }
+    // Sort by displayPriority (higher first), then by createdAt
+    filteredUsers = filteredUsers.sort((a, b) => {
+      const priorityDiff = (b.displayPriority || 0) - (a.displayPriority || 0);
+      if (priorityDiff !== 0) return priorityDiff;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
     setUsers(filteredUsers);
   };
 
@@ -72,6 +79,19 @@ export default function AdminUsers() {
       loadUsers();
     } catch (e) {
       setInfo('Failed to delete user: ' + (e.response?.data?.message || e.message));
+    }
+  };
+
+  const togglePinUser = async (userId, currentPriority) => {
+    try {
+      // If already pinned (priority > 0), unpin it (set to 0)
+      // If not pinned (priority = 0), pin it (set to 100)
+      const newPriority = (currentPriority || 0) > 0 ? 0 : 100;
+      await setUserPriority(userId, newPriority);
+      toast.success(newPriority > 0 ? 'User pinned to top!' : 'User unpinned');
+      loadUsers();
+    } catch (e) {
+      toast.error('Failed to update user priority: ' + (e.response?.data?.message || e.message));
     }
   };
 
@@ -218,6 +238,7 @@ export default function AdminUsers() {
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Gender</th>
                 <th className="px-4 py-3">Contact</th>
+                <th className="px-4 py-3">Pin</th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
@@ -235,56 +256,79 @@ export default function AdminUsers() {
                   </td>
                 </tr>
               ) : (
-                users.map(u => (
-                  <tr key={u._id} className="border-b hover:bg-blue-50 transition">
-                    <td className="px-4 py-3 font-medium text-gray-800">{u.name}</td>
-                    <td className="px-4 py-3 text-gray-600 text-sm">{u.email || '-'}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        u.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {u.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
-                        u.gender === 'male' 
-                          ? 'bg-blue-100 text-blue-700' 
-                          : 'bg-pink-100 text-pink-700'
-                      }`}>
-                        {u.gender === 'male' ? '👨' : '👩'} {u.gender === 'male' ? 'Boy' : 'Girl'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{u.contact}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2 justify-center">
-                        <button
-                          onClick={() => viewProfile(u._id)}
-                          className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                          title="View Profile"
-                        >
-                          <MdVisibility />
-                        </button>
-                        {u.status === 'pending' && (
+                users.map(u => {
+                  const isPinned = (u.displayPriority || 0) > 0;
+                  return (
+                    <tr key={u._id} className={`border-b hover:bg-blue-50 transition ${isPinned ? 'bg-yellow-50' : ''}`}>
+                      <td className="px-4 py-3 font-medium text-gray-800">
+                        <div className="flex items-center gap-2">
+                          {isPinned && <span className="text-yellow-500" title="Pinned to top">📌</span>}
+                          {u.name}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 text-sm">{u.email || '-'}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          u.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {u.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
+                          u.gender === 'male' 
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'bg-pink-100 text-pink-700'
+                        }`}>
+                          {u.gender === 'male' ? '👨' : '👩'} {u.gender === 'male' ? 'Boy' : 'Girl'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{u.contact}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-center">
                           <button
-                            onClick={() => onApprove(u._id)}
-                            className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-                            title="Approve"
+                            onClick={() => togglePinUser(u._id, u.displayPriority)}
+                            className={`p-2 rounded-lg transition ${
+                              isPinned 
+                                ? 'bg-yellow-500 text-white hover:bg-yellow-600' 
+                                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                            }`}
+                            title={isPinned ? 'Unpin from top' : 'Pin to top'}
                           >
-                            <MdCheckCircle />
+                            <MdPushPin className={isPinned ? 'rotate-0' : 'rotate-45'} />
                           </button>
-                        )}
-                        <button
-                          onClick={() => onDelete(u._id)}
-                          className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-                          title="Delete"
-                        >
-                          <MdDelete />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2 justify-center">
+                          <button
+                            onClick={() => viewProfile(u._id)}
+                            className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                            title="View Profile"
+                          >
+                            <MdVisibility />
+                          </button>
+                          {u.status === 'pending' && (
+                            <button
+                              onClick={() => onApprove(u._id)}
+                              className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+                              title="Approve"
+                            >
+                              <MdCheckCircle />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => onDelete(u._id)}
+                            className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                            title="Delete"
+                          >
+                            <MdDelete />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

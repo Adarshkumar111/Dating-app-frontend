@@ -242,8 +242,9 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
                         notif.dataKind === 'request_accepted' ||
                         notif.dataKind === 'request_resolved'
                       )
-                      const bg = isAccepted ? 'bg-green-100' : 'bg-red-100'
-                      const icon = isAccepted ? '✅' : '❌'
+                      const isAdminMessage = notif.type === 'admin_message'
+                      const bg = isAdminMessage ? 'bg-blue-100' : (isAccepted ? 'bg-green-100' : 'bg-red-100')
+                      const icon = isAdminMessage ? '❗' : (isAccepted ? '✅' : '❌')
                       return (
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${bg}`}>
                           <span className="text-2xl">{icon}</span>
@@ -440,8 +441,9 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
                           notif.dataKind === 'request_accepted' ||
                           notif.dataKind === 'request_resolved'
                         )
-                        const bg = isAccepted ? 'bg-green-100' : 'bg-red-100'
-                        const icon = isAccepted ? '✅' : '❌'
+                        const isAdminMessage = notif.type === 'admin_message'
+                        const bg = isAdminMessage ? 'bg-blue-100' : (isAccepted ? 'bg-green-100' : 'bg-red-100')
+                        const icon = isAdminMessage ? '❗' : (isAccepted ? '✅' : '❌')
                         return (
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center ${bg}`}>
                             <span className="text-2xl">{icon}</span>

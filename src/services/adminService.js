@@ -33,3 +33,6 @@ export const updateAppSettings = async (settings) => (await api.put('/admin/app-
 export const getPendingProfileEdits = async () => (await api.get('/admin/pending-edits')).data
 export const approveProfileEditApi = async (userId) => (await api.post('/admin/approve-edit', { userId })).data
 export const rejectProfileEditApi = async (userId, reason) => (await api.post('/admin/reject-edit', { userId, reason })).data
+
+// User Priority (Pin to Top)
+export const setUserPriority = async (userId, priority) => (await api.post('/admin/user-priority', { userId, priority })).data

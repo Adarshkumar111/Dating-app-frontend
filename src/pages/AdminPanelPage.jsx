@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MdWarning, MdSettings, MdStar, MdPayment } from 'react-icons/md';
+import { MdWarning, MdSettings, MdStar, MdPayment, MdNotifications } from 'react-icons/md';
 
 import AdminUsers from './admin/AdminUsers.jsx';
 import AdminSpammers from './admin/AdminSpammers.jsx';
@@ -8,6 +8,7 @@ import AdminPremiumPlans from './admin/AdminPremiumPlans.jsx';
 import AdminPayments from './admin/AdminPayments.jsx';
 import AdminProfileEdits from './admin/AdminProfileEdits.jsx';
 import AdminHelpRequests from './admin/AdminHelpRequests.jsx';
+import AdminNotifications from './admin/AdminNotifications.jsx';
 import { getHelpRequestStats } from '../services/helpService.js';
 import { onSocketEvent } from '../services/socketService.js';
 
@@ -96,6 +97,12 @@ export default function AdminPanelPage() {
               <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-pulse"></span>
             )}
           </button>
+          <button
+            onClick={() => setTab('notifications')}
+            className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition flex items-center gap-1 ${tab === 'notifications' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          >
+            <MdNotifications className="text-lg" /> <span className="hidden sm:inline">Send </span>Notifications
+          </button>
         </div>
 
         {/* Tab bodies */}
@@ -106,6 +113,7 @@ export default function AdminPanelPage() {
         {tab === 'payments' && <AdminPayments />}
         {tab === 'edits' && <AdminProfileEdits />}
         {tab === 'help' && <AdminHelpRequests />}
+        {tab === 'notifications' && <AdminNotifications />}
       </div>
     </div>
   );
