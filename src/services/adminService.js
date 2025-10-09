@@ -28,6 +28,17 @@ export const getPaymentStats = async () => (await api.get('/admin/payments/stats
 // App Settings (comprehensive)
 export const getAppSettings = async () => (await api.get('/admin/app-settings')).data
 export const updateAppSettings = async (settings) => (await api.put('/admin/app-settings', settings)).data
+export const uploadPreAuthBanner = async (file) => {
+  const fd = new FormData()
+  fd.append('image', file)
+  return (await api.post('/admin/preauth-banner', fd, { headers: { 'Content-Type': 'multipart/form-data' } })).data
+}
+
+export const uploadOnboardingSlides = async (files) => {
+  const fd = new FormData()
+  ;(files || []).forEach(f => fd.append('images', f))
+  return (await api.post('/admin/onboarding-slides', fd, { headers: { 'Content-Type': 'multipart/form-data' } })).data
+}
 
 // Profile Edit Approval
 export const getPendingProfileEdits = async () => (await api.get('/admin/pending-edits')).data

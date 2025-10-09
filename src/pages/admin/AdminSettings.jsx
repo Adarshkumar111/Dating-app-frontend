@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { MdSettings } from 'react-icons/md';
-import { getSettings, updateSettings, getAppSettings, updateAppSettings } from '../../services/adminService.js';
+import { getSettings, updateSettings, getAppSettings, updateAppSettings, uploadPreAuthBanner } from '../../services/adminService.js';
 
 export default function AdminSettings() {
   const [info, setInfo] = useState('');
@@ -10,20 +10,47 @@ export default function AdminSettings() {
     freeUserRequestLimit: 2,
     notifyFollowRequestEmail: false,
   });
-  const [appSettings, setAppSettings] = useState({ enabledFilters: {}, profileDisplayFields: {} });
+  const [appSettings, setAppSettings] = useState({ enabledFilters: {}, profileDisplayFields: {}, preAuthBanner: { enabled: false, imageUrl: '' }, auth: { loginIdentifier: 'email' } });
 
   const loadAll = async () => {
     try {
       setLoading(true);
       const [s, a] = await Promise.all([getSettings(), getAppSettings()]);
       setSettings(prev => ({ ...(prev || {}), ...(s || {}) }));
-      setAppSettings(a || { enabledFilters: {}, profileDisplayFields: {} });
+      setAppSettings(a || { enabledFilters: {}, profileDisplayFields: {}, preAuthBanner: { enabled: false, imageUrl: '' }, auth: { loginIdentifier: 'email' } });
     } catch (e) {
       const msg = e.response?.data?.message || e.message;
       setInfo(msg);
       toast.error(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onPreAuthFileSelected = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const { imageUrl } = await uploadPreAuthBanner(file)
+      setAppSettings(prev => ({ ...prev, preAuthBanner: { ...(prev.preAuthBanner || {}), imageUrl } }))
+      toast.success('Image uploaded')
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message)
+    } finally {
+      e.target.value = ''
+    }
+  }
+
+  const handlePreAuthBannerSave = async () => {
+    try {
+      await updateAppSettings({ preAuthBanner: appSettings.preAuthBanner || { enabled: false, imageUrl: '' } });
+      setInfo('Pre-auth banner saved');
+      toast.success('Pre-auth banner saved');
+      await loadAll();
+    } catch (e) {
+      const msg = 'Failed to save pre-auth banner: ' + (e.response?.data?.message || e.message);
+      setInfo(msg);
+      toast.error(msg);
     }
   };
 
@@ -113,6 +140,85 @@ export default function AdminSettings() {
         Save Settings
       </button>
 
+      {/* Auth Settings */}
+      <div className="mt-10 border-t pt-6">
+        <h3 className="text-2xl font-bold mb-4 text-gray-800">Auth Settings</h3>
+        <p className="text-sm text-gray-500 mb-4">Choose which identifier users can log in with. Email verification is still required.</p>
+        <div className="flex flex-col md:flex-row gap-3">
+          {[
+            ['email','Email'],
+            ['contact','Phone Number'],
+            ['itNumber','IT Number']
+          ].map(([val,label]) => (
+            <label key={val} className="flex items-center gap-2 p-3 border rounded-lg">
+              <input
+                type="radio"
+                name="loginIdentifier"
+                checked={(appSettings.auth?.loginIdentifier || 'email') === val}
+                onChange={() => setAppSettings(prev => ({ ...prev, auth: { ...(prev.auth || {}), loginIdentifier: val } }))}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+        <button
+          onClick={async () => {
+            try {
+              await updateAppSettings({ auth: appSettings.auth || { loginIdentifier: 'email' } })
+              setInfo('Auth settings saved')
+              toast.success('Auth settings saved')
+            } catch (e) {
+              const msg = 'Failed to save auth settings: ' + (e.response?.data?.message || e.message)
+              setInfo(msg)
+              toast.error(msg)
+            }
+          }}
+          className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+        >
+          Save Auth Settings
+        </button>
+      </div>
+
+      {/* Pre-Auth Banner Controls */}
+      <div className="mt-10 border-t pt-6">
+        <h3 className="text-2xl font-bold mb-4 text-gray-800">Pre-Auth Banner</h3>
+        <p className="text-sm text-gray-500 mb-4">If enabled, this image will be shown to users before Login and Signup with an OK button.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+          <label className="flex items-center gap-2 p-3 border rounded-lg md:col-span-1">
+            <input
+              type="checkbox"
+              checked={!!appSettings.preAuthBanner?.enabled}
+              onChange={(e) => setAppSettings({
+                ...appSettings,
+                preAuthBanner: { ...(appSettings.preAuthBanner || {}), enabled: e.target.checked }
+              })}
+            />
+            <span>Enable Banner</span>
+          </label>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={onPreAuthFileSelected}
+              className="w-full px-4 py-2 border rounded-lg"
+            />
+            {!!appSettings.preAuthBanner?.imageUrl && (
+              <div className="mt-3">
+                {/* eslint-disable-next-line jsx-a11y/img-redundant-alt */}
+                <img src={appSettings.preAuthBanner.imageUrl} alt="Preview image" className="max-h-48 rounded border" />
+              </div>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={handlePreAuthBannerSave}
+          className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+        >
+          Save Pre-Auth Banner
+        </button>
+      </div>
+
       {/* Filter Controls */}
       <div className="mt-10 border-t pt-6">
         <h3 className="text-2xl font-bold mb-4 text-gray-800">Filter Controls</h3>
@@ -153,13 +259,25 @@ export default function AdminSettings() {
           {[
             ['name','Name'],
             ['profilePhoto','Profile Photo'],
+            ['gender','Gender'],
             ['age','Age'],
+            ['dateOfBirth','Date of Birth'],
             ['location','Location'],
+            ['state','State'],
+            ['district','District'],
+            ['city','City'],
+            ['area','Area'],
             ['education','Education'],
             ['occupation','Occupation'],
             ['about','About'],
             ['fatherName','Father\'s Name'],
             ['motherName','Mother\'s Name'],
+            ['maritalStatus','Marital Status'],
+            ['disability','Disability'],
+            ['countryOfOrigin','Country of Origin'],
+            ['languagesKnown','Languages Known'],
+            ['numberOfSiblings','Number of Siblings'],
+            ['lookingFor','Looking For'],
             ['contact','Contact'],
             ['email','Email'],
             ['itNumber','IT Number']

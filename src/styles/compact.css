@@ -77,7 +77,8 @@
 
 /* ================= Waiting Page Tweaks ================= */
 /* Prevent scroll and apply light golden bg + black text for the waiting screen container */
-.app-compact .min-h-screen.bg-gray-100.flex.items-center.justify-center.p-4 {
+/* Use a dedicated class so other pages (e.g., Edit Profile) can scroll normally */
+.app-compact .waiting-approval {
   height: 100dvh !important;
   overflow: hidden !important;
   background-color: #FFF8E7 !important; /* light golden */

@@ -7,6 +7,11 @@ import Navbar from './components/Navbar.jsx'
 import MobileBottomBar from './components/MobileBottomBar.jsx'
 import MessageNotificationBanner from './components/MessageNotificationBanner.jsx'
 import SignupPage from './pages/SignupPage.jsx'
+import Step1Account from './pages/signup/Step1Account.jsx'
+import Step2Personal from './pages/signup/Step2Personal.jsx'
+import Step3Location from './pages/signup/Step3Location.jsx'
+import Step4Photos from './pages/signup/Step4Photos.jsx'
+import Step5MoreDetails from './pages/signup/Step5MoreDetails.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import WaitingApprovalPage from './pages/WaitingApprovalPage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
@@ -69,7 +74,12 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to={getDefaultRoute()} />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/signup" element={<Navigate to="/signup/step-1" replace />} />
+      <Route path="/signup/step-1" element={<Step1Account />} />
+      <Route path="/signup/step-2" element={<Step2Personal />} />
+      <Route path="/signup/step-3" element={<Step3Location />} />
+      <Route path="/signup/step-4" element={<Step4Photos />} />
+      <Route path="/signup/step-5" element={<Step5MoreDetails />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/forget-password" element={<ForgetPasswordPage />} />
       <Route path="/waiting" element={<PrivateRoute allowPending={true}><WaitingApprovalPage /></PrivateRoute>} />

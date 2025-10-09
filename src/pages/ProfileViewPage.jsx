@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { getProfile } from '../services/userService.js'
 import { sendRequest, unfollow } from '../services/requestService.js'
 import { getUserChatHistory, adminBlockUser, adminUnblockUser, getAppSettings } from '../services/adminService.js'
+import { updateProfile } from '../services/profileService.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import {
   MdMoreVert,
@@ -46,8 +47,13 @@ export default function ProfileViewPage() {
   const [lightbox, setLightbox] = useState({ open: false, src: '' })
   const [zoom, setZoom] = useState({ scale: 1, x: 0, y: 0, dragging: false, originX: 0, originY: 0 })
 
-  // Helper to check if a field is enabled by admin. Default true when not specified
+  // Helper to check if a field is enabled by admin.
+  // Always show ALL fields to the owner of the profile.
   const showField = (key) => {
+    try {
+      // currentUser and id are available in component scope
+      if (String(currentUser?.id) === String(id)) return true
+    } catch {}
     if (!profileDisplay || Object.keys(profileDisplay).length === 0) return true
     return !!profileDisplay[key]
   }
@@ -142,6 +148,19 @@ export default function ProfileViewPage() {
 
   const toggleChat = (chatId) => {
     setExpandedChat(expandedChat === chatId ? null : chatId)
+  }
+
+  const handleToggleVisibility = async () => {
+    try {
+      const next = !profile?.isPublic
+      const fd = new FormData()
+      fd.append('isPublic', next ? 'true' : 'false')
+      await updateProfile(fd)
+      setProfile({ ...profile, isPublic: next })
+      try { toast.success(next ? 'Your profile is now Public' : 'Your profile is now Private') } catch {}
+    } catch (e) {
+      try { toast.error(e.response?.data?.message || 'Failed to update visibility') } catch {}
+    }
   }
 
   useEffect(() => {
@@ -435,21 +454,31 @@ export default function ProfileViewPage() {
               )}
               
               {isOwnProfile && (
-                <button
-                  onClick={() => nav('/profile/edit')}
-                  className="mx-auto flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold shadow transition"
-                  style={{backgroundColor:'#F5DEB3', color:'#2C2C2C'}}
-                >
-                  <MdEdit />
-                  <span>Edit Profile</span>
-                </button>
+                <div className="flex justify-center gap-3">
+                  <button
+                    onClick={() => nav('/profile/edit')}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold shadow transition"
+                    style={{backgroundColor:'#F5DEB3', color:'#2C2C2C'}}
+                  >
+                    <MdEdit />
+                    <span>Edit Profile</span>
+                  </button>
+                  <button
+                    onClick={handleToggleVisibility}
+                    className="px-5 py-2.5 rounded-lg font-semibold shadow transition"
+                    style={{backgroundColor:'#B8860B', color:'#FFFFFF'}}
+                    title={profile?.isPublic ? 'Make Private' : 'Make Public'}
+                  >
+                    {profile?.isPublic ? 'Make Private' : 'Make Public'}
+                  </button>
+                </div>
               )}
             </div>
           </div>
         </div>
 
       {/* Profile Details */}
-      {(profile.isConnected || isOwnProfile || isAdmin) ? (
+      {(profile.isConnected || isOwnProfile || isAdmin || profile.isPublic) ? (
         <>
           {/* Admin-only fields */}
           {isAdmin && !isOwnProfile && (

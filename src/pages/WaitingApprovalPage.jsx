@@ -5,7 +5,7 @@ export default function WaitingApprovalPage(){
   const { user, logout } = useAuth()
   
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#FFF8E7] flex items-center justify-center p-4 waiting-approval">
       <div className="w-full max-w-sm md:max-w-md lg:max-w-lg">
         {/* Card Container */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">

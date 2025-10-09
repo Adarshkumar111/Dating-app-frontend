@@ -9,6 +9,8 @@ import AdminPayments from './admin/AdminPayments.jsx';
 import AdminProfileEdits from './admin/AdminProfileEdits.jsx';
 import AdminHelpRequests from './admin/AdminHelpRequests.jsx';
 import AdminNotifications from './admin/AdminNotifications.jsx';
+import AdminPreAuthScreen from './admin/AdminPreAuthScreen.jsx';
+import AdminOnboardingSlides from './admin/AdminOnboardingSlides.jsx';
 import { getHelpRequestStats } from '../services/helpService.js';
 import { onSocketEvent } from '../services/socketService.js';
 
@@ -66,6 +68,12 @@ export default function AdminPanelPage() {
             <MdSettings className="text-lg" /> Settings
           </button>
           <button
+            onClick={() => setTab('preauth')}
+            className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition ${tab === 'preauth' ? 'bg-teal-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          >
+            Signup/Login Screen
+          </button>
+          <button
             onClick={() => setTab('premium')}
             className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition flex items-center gap-1 ${tab === 'premium' ? 'bg-purple-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
           >
@@ -76,6 +84,12 @@ export default function AdminPanelPage() {
             className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition flex items-center gap-1 ${tab === 'payments' ? 'bg-green-600 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
           >
             <MdPayment className="text-lg" /> Payments
+          </button>
+          <button
+            onClick={() => setTab('onboarding')}
+            className={`px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition ${tab === 'onboarding' ? 'bg-teal-700 text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          >
+            Onboarding Slides
           </button>
           <button
             onClick={() => setTab('edits')}
@@ -103,6 +117,7 @@ export default function AdminPanelPage() {
           >
             <MdNotifications className="text-lg" /> <span className="hidden sm:inline">Send </span>Notifications
           </button>
+          
         </div>
 
         {/* Tab bodies in a scrollable area (mobile gets top padding via CSS) */}
@@ -115,6 +130,8 @@ export default function AdminPanelPage() {
           {tab === 'edits' && <AdminProfileEdits />}
           {tab === 'help' && <AdminHelpRequests />}
           {tab === 'notifications' && <AdminNotifications />}
+          {tab === 'preauth' && <AdminPreAuthScreen />}
+          {tab === 'onboarding' && <AdminOnboardingSlides />}
         </div>
       </div>
     </div>

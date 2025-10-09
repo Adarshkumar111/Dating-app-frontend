@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import { listOpposite, rejectUser, getFriends } from '../services/userService.js';
 import { getEnabledFilters } from '../services/publicService.js';
@@ -6,6 +7,7 @@ import { getAppSettings } from '../services/adminService.js';
 import { sendRequest, unfollow, cancelRequest } from '../services/requestService.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BsChatDots } from 'react-icons/bs';
+import OnboardingGate from '../components/OnboardingGate.jsx';
 
 export default function DashboardPage() {
   const [users, setUsers] = useState([]);
@@ -20,10 +22,32 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [showFilters, setShowFilters] = useState(false);
   const [profileDisplay, setProfileDisplay] = useState({});
+  const [profileDisplayLoaded, setProfileDisplayLoaded] = useState(false);
+  // Mobile filters overlay positioning
+  const mobileFilterAnchorRef = useRef(null);
+  const [mobilePopoverTop, setMobilePopoverTop] = useState(null);
 
-  // Helper: whether a field is enabled by admin (defaults to true if not configured)
+  // Helper to compute age from date of birth
+  const calcAge = (dob) => {
+    try {
+      const d = new Date(dob);
+      if (isNaN(d.getTime())) return null;
+      const today = new Date();
+      let age = today.getFullYear() - d.getFullYear();
+      const m = today.getMonth() - d.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+      return age >= 0 && age < 130 ? age : null;
+    } catch { return null; }
+  };
+
+  // Helper: whether a field is enabled by admin
+  // - Before settings load: show all (avoid empty cards)
+  // - After load: if no config saved yet => show all; else show only keys explicitly enabled
   const showField = (key) => {
-    if (!profileDisplay || Object.keys(profileDisplay).length === 0) return true;
+    if (!profileDisplayLoaded) return true;
+    const hasAny = profileDisplay && Object.keys(profileDisplay).length > 0;
+    if (!hasAny) return true; // no config -> default show all
+    if (!(key in (profileDisplay || {}))) return false; // missing key -> hidden
     return !!profileDisplay[key];
   };
 
@@ -42,7 +66,15 @@ export default function DashboardPage() {
     }, 500);
     setSearchDebounce(timer);
     return () => clearTimeout(timer);
-  }, [filters.name]);
+  }, [filters.name, tab]);
+
+  // When mobile filters open, compute popover top relative to button
+  useEffect(() => {
+    if (showFilters && mobileFilterAnchorRef.current) {
+      const r = mobileFilterAnchorRef.current.getBoundingClientRect();
+      setMobilePopoverTop(Math.round(r.bottom + 8));
+    }
+  }, [showFilters, mobileFilterAnchorRef]);
 
   const loadUsers = async () => {
     const query = { page: filters.page };
@@ -120,6 +152,7 @@ export default function DashboardPage() {
       try {
         const app = await getAppSettings();
         setProfileDisplay(app?.profileDisplayFields || {});
+        setProfileDisplayLoaded(true);
       } catch (_) {}
     })();
   }, []);
@@ -205,6 +238,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen" style={{backgroundColor: '#FFF8E7'}}>
+      <OnboardingGate />
       {/* Desktop top background band to match navbar and prevent white gap on scroll */}
       <div
         className="hidden md:block fixed top-0 left-0 right-0"
@@ -261,7 +295,7 @@ export default function DashboardPage() {
           </button>
           {/* Filters button (desktop only, same size as tabs) */}
           {tab === 'dashboard' && (
-            <div className="relative">
+            <div className={`relative ${showFilters ? 'z-[10000]' : ''}`}>
               <button
                 onClick={() => setShowFilters((s) => !s)}
                 className="px-8 py-3 rounded-xl font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
@@ -303,22 +337,26 @@ export default function DashboardPage() {
         {/* Mobile-only compact filters (fixed under search) */}
         <div
           className="md:hidden flex justify-center gap-3 mt-3"
-          style={{ position: 'fixed', top: '140px', left: 0, right: 0, backgroundColor: '#FFF8E7', zIndex: 25, padding: '0 16px' }}
+          style={{ position: 'fixed', top: '140px', left: 0, right: 0, backgroundColor: '#FFF8E7', zIndex: 1000, padding: '0 16px' }}
         >
           {tab === 'dashboard' && (
-            <div className="relative">
+            <div className={`relative ${showFilters ? 'z-[10000]' : ''}`}>
               <button
                 onClick={() => setShowFilters((s) => !s)}
                 className="px-3 py-2 rounded-xl font-semibold shadow text-sm"
                 style={{backgroundColor: 'white', color: '#B8860B', border: '2px solid #D4AF37'}}
                 aria-label="Filters"
+                ref={mobileFilterAnchorRef}
               >
                 Filters
               </button>
-              {showFilters && (
+              {showFilters && createPortal(
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowFilters(false)} />
-                  <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-[85vw] max-w-sm bg-white rounded-xl shadow-md p-3 z-50" style={{border: '2px solid #D4AF37'}}>
+                  <div className="fixed inset-0 z-[2000]" onClick={() => setShowFilters(false)} />
+                  <div
+                    className="fixed left-1/2 w-[85vw] max-w-sm bg-white rounded-xl shadow-md p-3 z-[2100]"
+                    style={{ border: '2px solid #D4AF37', top: mobilePopoverTop ?? 180, transform: 'translateX(-50%)' }}
+                  >
                     <div className="grid grid-cols-1 gap-2">
                       {enabledFilters.age && (
                         <div className="flex items-center gap-2">
@@ -339,7 +377,8 @@ export default function DashboardPage() {
                       <button onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', occupation: '', name: '' }); setShowFilters(false); setLoading(true); loadUsers(); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Reset</button>
                     </div>
                   </div>
-                </>
+                </>,
+                document.body
               )}
             </div>
           )}
@@ -383,7 +422,7 @@ export default function DashboardPage() {
         
         {/* dashboard Tab */}
         {tab === 'dashboard' && (
-          <div className="dashboard-scroll overflow-y-auto md:flex-1 md:pr-1 md:pt-0">
+          <div className="dashboard-scroll overflow-visible md:overflow-y-auto md:flex-1 md:pr-1 md:pt-0">
             <div className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4">
             {users.map(u => {
               const isPinned = (u.displayPriority || 0) > 0;
@@ -421,10 +460,10 @@ export default function DashboardPage() {
                       {showField('name') && (
                         <h3 className="font-semibold leading-5" style={{color: '#B8860B'}}>{u.name}</h3>
                       )}
-                      {(u.age && showField('age')) || (u.location && showField('location')) ? (
+                      {(() => { const ageVal = showField('age') ? (u.age ?? calcAge(u.dateOfBirth)) : null; return (ageVal || (u.location && showField('location'))); })() ? (
                         <p className="text-xs text-gray-500">
-                          {showField('age') && u.age ? `${u.age} yrs` : ''}
-                          {showField('age') && showField('location') && u.age && u.location ? ' • ' : ''}
+                          {(() => { const ageVal = showField('age') ? (u.age ?? calcAge(u.dateOfBirth)) : null; return ageVal ? `${ageVal} yrs` : ''; })()}
+                          {(() => { const ageVal = showField('age') ? (u.age ?? calcAge(u.dateOfBirth)) : null; return (ageVal && showField('location') && u.location) ? ' • ' : ''; })()}
                           {showField('location') && u.location ? u.location : ''}
                         </p>
                       ) : null}
@@ -441,7 +480,7 @@ export default function DashboardPage() {
                 )}
 
                 {/* Quick facts */}
-                {((u.education && showField('education')) || (u.maritalStatus) || (u.occupation && showField('occupation'))) && (
+                {((u.education && showField('education')) || (u.maritalStatus && showField('maritalStatus')) || (u.occupation && showField('occupation'))) && (
                   <div className="flex flex-wrap items-center gap-2 mb-3">
                     {u.education && showField('education') && (
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium" style={{backgroundColor: 'white', color: '#B8860B', border: '1px solid #D4AF37'}}>
@@ -453,11 +492,54 @@ export default function DashboardPage() {
                         💼 {u.occupation}
                       </span>
                     )}
-                    {u.maritalStatus && (
+                    {u.maritalStatus && showField('maritalStatus') && (
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium capitalize" style={{backgroundColor: 'white', color: '#B8860B', border: '1px solid #D4AF37'}}>
                         💍 {String(u.maritalStatus).replace('_',' ')}
                       </span>
                     )}
+                  </div>
+                )}
+
+                {/* Additional admin-controlled details */}
+                {(
+                  (u.fatherName && showField('fatherName')) ||
+                  (u.motherName && showField('motherName')) ||
+                  (u.dateOfBirth && showField('dateOfBirth')) ||
+                  (u.disability && showField('disability')) ||
+                  (u.countryOfOrigin && showField('countryOfOrigin')) ||
+                  (Array.isArray(u.languagesKnown) && u.languagesKnown.length && showField('languagesKnown')) ||
+                  ((u.numberOfSiblings ?? null) !== null && showField('numberOfSiblings'))
+                ) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                    {u.fatherName && showField('fatherName') && (
+                      <div className="text-xs text-gray-700"><span className="font-semibold" style={{color:'#B8860B'}}>Father's Name:</span> {u.fatherName}</div>
+                    )}
+                    {u.motherName && showField('motherName') && (
+                      <div className="text-xs text-gray-700"><span className="font-semibold" style={{color:'#B8860B'}}>Mother's Name:</span> {u.motherName}</div>
+                    )}
+                    {u.dateOfBirth && showField('dateOfBirth') && (
+                      <div className="text-xs text-gray-700"><span className="font-semibold" style={{color:'#B8860B'}}>Date of Birth:</span> {new Date(u.dateOfBirth).toLocaleDateString()}</div>
+                    )}
+                    {u.disability && showField('disability') && (
+                      <div className="text-xs text-gray-700"><span className="font-semibold" style={{color:'#B8860B'}}>Disability:</span> {u.disability}</div>
+                    )}
+                    {u.countryOfOrigin && showField('countryOfOrigin') && (
+                      <div className="text-xs text-gray-700"><span className="font-semibold" style={{color:'#B8860B'}}>Country of Origin:</span> {u.countryOfOrigin}</div>
+                    )}
+                    {Array.isArray(u.languagesKnown) && u.languagesKnown.length > 0 && showField('languagesKnown') && (
+                      <div className="text-xs text-gray-700"><span className="font-semibold" style={{color:'#B8860B'}}>Languages:</span> {u.languagesKnown.join(', ')}</div>
+                    )}
+                    {(u.numberOfSiblings ?? null) !== null && showField('numberOfSiblings') && (
+                      <div className="text-xs text-gray-700"><span className="font-semibold" style={{color:'#B8860B'}}>Siblings:</span> {u.numberOfSiblings}</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Looking For */}
+                {u.lookingFor && showField('lookingFor') && (
+                  <div className="mb-3">
+                    <div className="text-xs font-semibold mb-1" style={{color:'#B8860B'}}>Looking For</div>
+                    <p className="text-xs text-gray-700 line-clamp-2">{u.lookingFor}</p>
                   </div>
                 )}
 

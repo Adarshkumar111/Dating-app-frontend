@@ -10,8 +10,12 @@ export default function EditProfilePage() {
   const nav = useNavigate()
   const { user: currentUser, setUser } = useAuth()
   const [form, setForm] = useState({
-    name: '', fatherName: '', motherName: '', age: '', location: '', education: '', occupation: '', about: ''
+    name: '', fatherName: '', motherName: '', age: '', dateOfBirth: '', maritalStatus: '', disability: '', countryOfOrigin: '',
+    state: '', district: '', city: '', area: '', location: '', education: '', occupation: '', languagesKnown: '', numberOfSiblings: '',
+    lookingFor: '', about: '', gender: '',
+    isPublic: false
   })
+  const [readonlyInfo, setReadonlyInfo] = useState({ email: '', contact: '', itNumber: '' })
   const [profilePhoto, setProfilePhoto] = useState(null)
   const [profilePhotoPreview, setProfilePhotoPreview] = useState(null)
   const [slotFiles, setSlotFiles] = useState(Array(8).fill(null))
@@ -46,11 +50,25 @@ export default function EditProfilePage() {
         fatherName: data.fatherName || '',
         motherName: data.motherName || '',
         age: data.age || '',
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth).toISOString().slice(0,10) : '',
+        maritalStatus: data.maritalStatus || '',
+        disability: data.disability || '',
+        countryOfOrigin: data.countryOfOrigin || '',
+        state: data.state || '',
+        district: data.district || '',
+        city: data.city || '',
+        area: data.area || '',
         location: data.location || '',
         education: data.education || '',
         occupation: data.occupation || '',
-        about: data.about || ''
+        languagesKnown: Array.isArray(data.languagesKnown) ? data.languagesKnown.join(', ') : (data.languagesKnown || ''),
+        numberOfSiblings: (data.numberOfSiblings ?? '') + '',
+        lookingFor: data.lookingFor || '',
+        about: data.about || '',
+        gender: data.gender || '',
+        isPublic: !!data.isPublic
       })
+      setReadonlyInfo({ email: data.email || '', contact: data.contact || '', itNumber: data.itNumber || '' })
       setExistingGallery(data.galleryImages || [])
     })()
   }, [])
@@ -71,7 +89,18 @@ export default function EditProfilePage() {
     setLoading(true)
     try {
       const fd = new FormData()
-      Object.entries(form).forEach(([k, v]) => fd.append(k, v))
+      // Prepare languagesKnown as array and number fields
+      const payload = { ...form }
+      if (payload.languagesKnown && typeof payload.languagesKnown === 'string') {
+        payload.languagesKnown = payload.languagesKnown.split(',').map(s => s.trim()).filter(Boolean)
+      }
+      if (payload.numberOfSiblings !== '') payload.numberOfSiblings = Number(payload.numberOfSiblings)
+      // Append to FormData
+      Object.entries(payload).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') fd.append(k, v)
+      })
+      // Always include visibility flag explicitly
+      fd.set('isPublic', form.isPublic ? 'true' : 'false')
       if (profilePhoto) fd.append('profilePhoto', profilePhoto)
       slotFiles.forEach(f => { if (f) fd.append('galleryImages', f) })
       fd.append('replaceGallery', 'true')
@@ -148,7 +177,7 @@ export default function EditProfilePage() {
   const firstLetter = currentUser?.name?.[0]?.toUpperCase() || 'U'
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#FFF8E7] flex items-center justify-center p-4">
       <div className="w-full max-w-sm md:max-w-2xl lg:max-w-3xl">
         {/* Card Container */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -185,7 +214,38 @@ export default function EditProfilePage() {
             {/* Name */}
             <h2 className="text-xl font-bold text-amber-600 mb-6">{currentUser?.name || 'John Doe'}</h2>
 
+            {/* Read-only identifiers */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6 text-left">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Email</label>
+                <input value={readonlyInfo.email} disabled className="w-full border border-yellow-300 rounded-lg p-2 text-sm bg-gray-100 cursor-not-allowed" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Contact</label>
+                <input value={readonlyInfo.contact} disabled className="w-full border border-yellow-300 rounded-lg p-2 text-sm bg-gray-100 cursor-not-allowed" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">IT Number</label>
+                <input value={readonlyInfo.itNumber} disabled className="w-full border border-yellow-300 rounded-lg p-2 text-sm bg-gray-100 cursor-not-allowed" />
+              </div>
+            </div>
+
             {info && <div className="mb-4 p-3 bg-yellow-50 text-amber-700 rounded-lg text-sm">{info}</div>}
+
+            {/* Privacy Section */}
+            <div className="border border-yellow-300 rounded-xl p-4 mb-6 text-left">
+              <h3 className="text-amber-600 font-semibold mb-3">PROFILE VISIBILITY</h3>
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={!!form.isPublic}
+                  onChange={(e) => setForm({ ...form, isPublic: e.target.checked })}
+                />
+                <span className="text-sm text-gray-700">
+                  Make my profile <span className="font-semibold">Public</span> (others can view all photos and details without connection. Chat still requires mutual follow.)
+                </span>
+              </label>
+            </div>
 
             {/* Photos Section */}
             <div className="border border-yellow-300 rounded-xl p-4 mb-6">
