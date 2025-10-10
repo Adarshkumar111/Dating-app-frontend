@@ -24,6 +24,8 @@ export const initializeDefaultData = async () => (await api.post('/admin/initial
 
 // Payments stats
 export const getPaymentStats = async () => (await api.get('/admin/payments/stats')).data
+export const getPremiumUsers = async () => (await api.get('/admin/payments/premium-users')).data
+export const cancelUserPremium = async (userId) => (await api.post('/admin/payments/cancel-premium', { userId })).data
 
 // App Settings (comprehensive)
 export const getAppSettings = async () => (await api.get('/admin/app-settings')).data

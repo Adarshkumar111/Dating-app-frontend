@@ -97,7 +97,41 @@ export default function DashboardPage() {
     if (filters.district) query.district = filters.district;
     if (filters.name) query.name = filters.name;
     const res = await listOpposite(query);
-    setUsers(res.items || []);
+    const items = Array.isArray(res.items) ? res.items : [];
+    // Split pinned vs others (pinned above all)
+    const pinned = items.filter(u => (Number(u?.displayPriority) || 0) > 0);
+    const others = items.filter(u => (Number(u?.displayPriority) || 0) <= 0);
+    // Group by tier and shuffle within groups: gold > silver > bronze > free
+    const normTier = (u) => {
+      const t = String(u?.premiumTier || u?.premiumPlan?.tier || '').toLowerCase();
+      return u?.isPremium ? (t || 'bronze') : 'free';
+    };
+    const groups = { gold: [], silver: [], bronze: [], free: [] };
+    for (const u of others) {
+      const t = normTier(u);
+      if (t === 'gold') groups.gold.push(u);
+      else if (t === 'silver') groups.silver.push(u);
+      else if (t === 'bronze') groups.bronze.push(u);
+      else groups.free.push(u);
+    }
+    const shuffle = (arr) => {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    };
+    // Sort pinned by priority desc, then light shuffle to avoid static order
+    const pinnedSorted = [...pinned].sort((a,b) => (Number(b.displayPriority)||0) - (Number(a.displayPriority)||0));
+    const pinnedShuffled = shuffle(pinnedSorted);
+    const ordered = [
+      ...pinnedShuffled,
+      ...shuffle(groups.gold),
+      ...shuffle(groups.silver),
+      ...shuffle(groups.bronze),
+      ...shuffle(groups.free)
+    ];
+    setUsers(ordered);
     setLoading(false);
   };
 
@@ -491,10 +525,19 @@ export default function DashboardPage() {
                 className={`col-span-1 bg-white shadow-md rounded-xl p-4 min-w-0 relative ${
                   isPinned ? 'ring-2 ring-amber-400 shadow-lg animate-subtle-shine' : ''
                 }`}
-                style={isPinned ? {
+                style={u.isPremium ? (() => {
+                  const tier = String(u.premiumTier || u.premiumPlan?.tier || '').toLowerCase();
+                  const goldLinear = 'linear-gradient(135deg, #F8D776 0%, #FCE7A2 50%, #E6F0FF 100%)';
+                  const silverLinear = 'linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 50%, #F5F7FA 100%)';
+                  const bronzeLinear = 'linear-gradient(135deg, #E3B58C 0%, #EFD6C2 50%, #D9B08C 100%)';
+                  const lighting = 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.42), rgba(255,255,255,0) 60%)';
+                  if (tier === 'gold') return { backgroundImage: `${lighting}, ${goldLinear}` };
+                  if (tier === 'silver') return { backgroundImage: `${lighting}, ${silverLinear}` };
+                  return { backgroundImage: `${lighting}, ${bronzeLinear}` };
+                })() : (isPinned ? {
                   background: 'linear-gradient(135deg, #FFF9E6 0%, #FFFFFF 50%, #FFF9E6 100%)',
                   boxShadow: '0 4px 15px rgba(218, 165, 32, 0.3)'
-                } : {}}
+                } : {})}
               >
                 {/* Pinned Badge */}
                 {isPinned && (
@@ -507,12 +550,42 @@ export default function DashboardPage() {
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-3">
                     {showField('profilePhoto') && (
-                      <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold" style={{backgroundColor: '#B8860B'}}>
-                        {u.profilePhoto ? (
-                          <img src={u.profilePhoto} alt="profile" className="w-10 h-10 rounded-full object-cover" />
-                        ) : (
-                          (showField('name') ? (u.name?.[0]?.toUpperCase() || '?') : '?')
-                        )}
+                      <div className="flex flex-col items-center">
+                        {(() => {
+                          const tier = String(u.premiumTier || u.premiumPlan?.tier || '').toLowerCase();
+                          const isPrem = !!u.isPremium;
+                          // Neutral avatar background and black initials
+                          const avatarBg = '#F3F4F6';
+                          const textColor = '#111827';
+                          // Tier-colored thin border only when premium
+                          const br = isPrem
+                            ? (tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : '#CD7F32')
+                            : 'transparent';
+                          return (
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center font-bold ring-2 ring-white/70"
+                              style={{ background: avatarBg, color: textColor, border: `1px solid ${br}` }}
+                            >
+                          {u.profilePhoto ? (
+                            <img src={u.profilePhoto} alt="profile" className="w-10 h-10 rounded-full object-cover" />
+                          ) : (
+                            (showField('name') ? (u.name?.[0]?.toUpperCase() || '?') : '?')
+                          )}
+                            </div>
+                          );
+                        })()}
+                        {u.isPremium && (() => {
+                          const tier = String(u.premiumTier || u.premiumPlan?.tier || '').toLowerCase();
+                          const bg = tier === 'gold' ? '#FCE7A2' : tier === 'silver' ? '#E5E7EB' : '#EFD6C2';
+                          const fg = tier === 'gold' ? '#8B6B00' : tier === 'silver' ? '#4B5563' : '#7C4A21';
+                          const br = tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : '#CD7F32';
+                          const label = tier ? tier.toUpperCase() : 'PREMIUM';
+                          return (
+                            <span className="mt-1 px-2 py-0.5 text-[10px] font-extrabold rounded-full border" style={{ backgroundColor: bg, color: fg, borderColor: br }}>
+                              {label}
+                            </span>
+                          );
+                        })()}
                       </div>
                     )}
                     <div>

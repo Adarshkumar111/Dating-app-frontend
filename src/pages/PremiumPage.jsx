@@ -1,15 +1,18 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import api from '../services/http.js'
 import { MdStar, MdCheck, MdFlashOn, MdPayment } from 'react-icons/md'
+import { getMe } from '../services/userService.js'
 
 export default function PremiumPage(){
   const [plans, setPlans] = useState([])
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(true)
   const [processingPayment, setProcessingPayment] = useState(false)
+  const [me, setMe] = useState(null)
 
   useEffect(() => {
     loadPlans()
+    loadMe()
   }, [])
 
   const loadPlans = async () => {
@@ -21,6 +24,15 @@ export default function PremiumPage(){
     } catch (e) {
       setInfo('Failed to load premium plans')
       setLoading(false)
+    }
+  }
+
+  const loadMe = async () => {
+    try {
+      const data = await getMe()
+      setMe(data)
+    } catch (e) {
+      // ignore if unauthenticated, page still loads
     }
   }
 
@@ -39,7 +51,7 @@ export default function PremiumPage(){
         amount: orderData.amount,
         currency: orderData.currency,
         name: 'M Nikah Premium',
-        description: `${plan.name} - ${plan.duration} month${plan.duration > 1 ? 's' : ''}`,
+        description: `${plan.name} - ${plan.duration} day${plan.duration > 1 ? 's' : ''}`,
         order_id: orderData.orderId,
         handler: async function (response) {
           try {
@@ -107,7 +119,7 @@ export default function PremiumPage(){
   )
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-[#FFF8E7] py-8 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-800 mb-4 flex items-center justify-center gap-3">
@@ -128,6 +140,69 @@ export default function PremiumPage(){
           </div>
         )}
 
+        {me?.isPremium && (
+          <div className="mb-10 bg-white rounded-2xl shadow-md p-6 border">
+            {(() => {
+              const now = new Date()
+              const exp = me.premiumExpiresAt ? new Date(me.premiumExpiresAt) : null
+              const remainDays = exp ? Math.max(0, Math.ceil((exp - now) / (1000 * 60 * 60 * 24))) : 0
+              const tier = String(me.premiumTier || '').toLowerCase()
+              const bg = tier === 'gold' ? '#FCE7A2' : tier === 'silver' ? '#E5E7EB' : '#EFD6C2'
+              const fg = tier === 'gold' ? '#8B6B00' : tier === 'silver' ? '#4B5563' : '#7C4A21'
+              const br = tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : '#CD7F32'
+              const plan = plans.find(p => String(p._id) === String(me.premiumPlan)) || plans.find(p => String(p.tier).toLowerCase() === tier)
+              const totalDays = plan?.duration ? Number(plan.duration) : null
+              const usedDays = totalDays != null && exp ? Math.max(0, totalDays - remainDays) : null
+              const progress = totalDays ? Math.min(100, Math.max(0, Math.round(((usedDays || 0) / totalDays) * 100))) : null
+              return (
+                <div>
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                      {`Your ${tier ? tier.toUpperCase() : 'PREMIUM'}`}
+                    </div>
+                    <div className="text-sm text-gray-600">Remaining: <span className="font-semibold">{remainDays} day(s)</span></div>
+                  </div>
+                  {totalDays != null && (
+                    <div className="mt-3">
+                      <div className="flex justify-between text-xs text-gray-600 mb-1">
+                        <span>Used {usedDays} / {totalDays} days</span>
+                        <span>{progress}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-2 bg-purple-500" style={{ width: `${progress}%` }} />
+                      </div>
+                    </div>
+                  )}
+                  {plan?.features?.length > 0 && (
+                    <div className="mt-4">
+                      <p className="font-semibold text-gray-700 mb-2">Your Plan Features:</p>
+                      <ul className="text-sm text-gray-700 space-y-1">
+                        {plan.features.map((f, idx) => (
+                          <li key={idx} className="flex items-center gap-2">
+                            <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="mt-6">
+                    <button
+                      onClick={() => {
+                        const el = document.getElementById('plans-grid')
+                        if (el) el.scrollIntoView({ behavior: 'smooth' })
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+                    >
+                      Renew / Upgrade
+                    </button>
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+        )}
+
         {plans.length === 0 ? (
           <div className="text-center py-20">
             <MdStar className="text-6xl mx-auto mb-4 text-gray-300" />
@@ -135,10 +210,29 @@ export default function PremiumPage(){
             <p className="text-gray-500">Premium plans are being configured. Please check back later!</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {plans.map((plan, index) => {
+          <div id="plans-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {(() => {
+              // pick first plan per tier in fixed order to avoid duplicates
+              const order = ['bronze','silver','gold']
+              const firstPerTier = {}
+              const deduped = []
+              for (const p of plans) {
+                const t = String(p.tier || '').toLowerCase()
+                if (!firstPerTier[t]) {
+                  firstPerTier[t] = p
+                }
+              }
+              for (const t of order) {
+                if (firstPerTier[t]) deduped.push(firstPerTier[t])
+              }
+              return deduped
+            })().map((plan, index) => {
               const finalPrice = plan.price - (plan.price * plan.discount / 100)
               const isPopular = index === 1 // Middle plan is popular
+              const tier = (plan.tier || '').toLowerCase()
+              const tierBg = tier === 'gold' ? '#FCE7A2' : tier === 'silver' ? '#E5E7EB' : tier === 'bronze' ? '#EFD6C2' : 'transparent'
+              const tierFg = tier === 'gold' ? '#8B6B00' : tier === 'silver' ? '#4B5563' : tier === 'bronze' ? '#7C4A21' : '#374151'
+              const tierBr = tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : tier === 'bronze' ? '#CD7F32' : 'rgba(0,0,0,0.06)'
 
               return (
                 <div
@@ -157,14 +251,21 @@ export default function PremiumPage(){
 
                   <div className={`p-8 ${isPopular ? 'bg-gradient-to-br from-purple-50 to-pink-50' : ''} flex flex-col h-full`}> 
                     <div className="text-center mb-6">
-                      <h3 className="text-2xl font-bold text-gray-800 mb-2">{plan.name}</h3>
+                      <h3 className="text-2xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-2">
+                        {plan.name}
+                        {tier && (
+                          <span className="text-xs font-extrabold px-2 py-0.5 rounded-full border" style={{ backgroundColor: tierBg, color: tierFg, borderColor: tierBr }}>
+                            {tier.toUpperCase()}
+                          </span>
+                        )}
+                      </h3>
                       <div className="flex items-center justify-center gap-2 mb-2">
                         {plan.discount > 0 && (
                           <span className="text-lg text-gray-500 line-through">₹{plan.price}</span>
                         )}
                         <span className="text-4xl font-bold text-purple-600">₹{finalPrice}</span>
                       </div>
-                      <p className="text-gray-600">{plan.duration} month{plan.duration > 1 ? 's' : ''}</p>
+                      <p className="text-gray-600">{plan.duration} day{plan.duration > 1 ? 's' : ''}</p>
                       {plan.discount > 0 && (
                         <div className="inline-block bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-semibold mt-2">
                           {plan.discount}% OFF

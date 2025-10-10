@@ -10,7 +10,8 @@ export default function AdminPremiumPlans() {
   const [editingPlan, setEditingPlan] = useState(null);
   const [planForm, setPlanForm] = useState({
     name: '',
-    duration: 1,
+    tier: '',
+    duration: 30,
     price: 0,
     discount: 0,
     requestLimit: 50,
@@ -25,7 +26,11 @@ export default function AdminPremiumPlans() {
     try {
       setLoading(true);
       const data = await getPremiumPlans();
-      setPremiumPlans(data);
+      // Force fixed order: bronze, silver, gold
+      const order = ['bronze','silver','gold'];
+      const byTier = Object.fromEntries((data || []).map(p => [String(p.tier || '').toLowerCase(), p]));
+      const fixed = order.map(t => byTier[t]).filter(Boolean);
+      setPremiumPlans(fixed);
     } catch (e) {
       setInfo('Failed to load premium plans: ' + (e.response?.data?.message || e.message));
     } finally {
@@ -38,7 +43,7 @@ export default function AdminPremiumPlans() {
       await createPremiumPlan(planForm);
       setInfo('Premium plan created successfully');
       setShowPlanModal(false);
-      setPlanForm({ name: '', duration: 1, price: 0, discount: 0, requestLimit: 50, features: [] });
+      setPlanForm({ name: '', tier: '', duration: 30, price: 0, discount: 0, requestLimit: 50, features: [] });
       loadPremiumPlans();
     } catch (e) {
       setInfo('Failed to create premium plan: ' + (e.response?.data?.message || e.message));
@@ -51,7 +56,7 @@ export default function AdminPremiumPlans() {
       setInfo('Premium plan updated successfully');
       setShowPlanModal(false);
       setEditingPlan(null);
-      setPlanForm({ name: '', duration: 1, price: 0, discount: 0, requestLimit: 50, features: [] });
+      setPlanForm({ name: '', tier: '', duration: 30, price: 0, discount: 0, requestLimit: 50, features: [] });
       loadPremiumPlans();
     } catch (e) {
       setInfo('Failed to update premium plan: ' + (e.response?.data?.message || e.message));
@@ -73,11 +78,26 @@ export default function AdminPremiumPlans() {
     setEditingPlan(plan);
     setPlanForm({
       name: plan.name,
+      tier: plan.tier || '',
       duration: plan.duration,
       price: plan.price,
       discount: plan.discount,
       requestLimit: plan.requestLimit,
       features: plan.features || [],
+    });
+    setShowPlanModal(true);
+  };
+
+  const openCreateForTier = (tier) => {
+    setEditingPlan(null);
+    setPlanForm({
+      name: tier === 'gold' ? 'Gold Plan' : tier === 'silver' ? 'Silver Plan' : 'Bronze Plan',
+      tier,
+      duration: 30,
+      price: 0,
+      discount: 0,
+      requestLimit: 50,
+      features: []
     });
     setShowPlanModal(true);
   };
@@ -96,7 +116,7 @@ export default function AdminPremiumPlans() {
         </h3>
         <button
           onClick={() => {
-            setPlanForm({ name: '', duration: 1, price: 0, discount: 0, requestLimit: 50, features: [] });
+            setPlanForm({ name: '', tier: '', duration: 30, price: 0, discount: 0, requestLimit: 50, features: [] });
             setEditingPlan(null);
             setShowPlanModal(true);
           }}
@@ -107,36 +127,40 @@ export default function AdminPremiumPlans() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {premiumPlans.map(plan => (
-          <div key={plan._id} className="bg-white rounded-xl shadow-md p-6 border-2 border-purple-100">
+        {['bronze','silver','gold'].map((tier) => {
+          const plan = premiumPlans.find(p => String(p.tier || '').toLowerCase() === tier);
+          const palette = tier === 'gold' ? {bg:'#FCE7A2', fg:'#8B6B00', br:'#D4AF37'} : tier === 'silver' ? {bg:'#E5E7EB', fg:'#4B5563', br:'#C0C0C0'} : {bg:'#EFD6C2', fg:'#7C4A21', br:'#CD7F32'}
+          return (
+          <div key={plan?._id || tier} className="bg-white rounded-xl shadow-md p-6 border-2 border-purple-100">
             <div className="flex justify-between items-start mb-4">
-              <h4 className="text-xl font-bold text-gray-800">{plan.name}</h4>
+              <h4 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                {plan?.name || (tier === 'gold' ? 'Gold Plan' : tier === 'silver' ? 'Silver Plan' : 'Bronze Plan')}
+                <span className="text-xs font-extrabold px-2 py-0.5 rounded-full border" style={{ backgroundColor: palette.bg, color: palette.fg, borderColor: palette.br }}>
+                  {tier.toUpperCase()}
+                </span>
+              </h4>
               <div className="flex gap-2">
-                <button
-                  onClick={() => openEditPlan(plan)}
-                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                >
-                  <MdEdit />
-                </button>
-                <button
-                  onClick={() => handleDeletePlan(plan._id)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                >
-                  <MdDelete />
-                </button>
+                {plan ? (
+                  <>
+                    <button onClick={() => openEditPlan(plan)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><MdEdit /></button>
+                    <button onClick={() => handleDeletePlan(plan._id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><MdDelete /></button>
+                  </>
+                ) : (
+                  <button onClick={() => openCreateForTier(tier)} className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm">Create</button>
+                )}
               </div>
             </div>
             
             <div className="space-y-2 mb-4">
-              <p className="text-gray-600">Duration: <span className="font-semibold">{plan.duration} month(s)</span></p>
-              <p className="text-gray-600">Price: <span className="font-semibold text-green-600">${plan.price}</span></p>
-              {plan.discount > 0 && (
+              <p className="text-gray-600">Duration: <span className="font-semibold">{plan ? plan.duration : 0} day(s)</span></p>
+              <p className="text-gray-600">Price: <span className="font-semibold text-green-600">${plan ? plan.price : 0}</span></p>
+              {plan?.discount > 0 && (
                 <p className="text-gray-600">Discount: <span className="font-semibold text-orange-600">{plan.discount}%</span></p>
               )}
-              <p className="text-gray-600">Daily Requests: <span className="font-semibold text-purple-600">{plan.requestLimit}</span></p>
+              <p className="text-gray-600">Daily Requests: <span className="font-semibold text-purple-600">{plan ? plan.requestLimit : 0}</span></p>
             </div>
             
-            {plan.features && plan.features.length > 0 && (
+            {plan?.features && plan.features.length > 0 && (
               <div>
                 <p className="font-semibold text-gray-700 mb-2">Features:</p>
                 <ul className="text-sm text-gray-600 space-y-1">
@@ -150,7 +174,7 @@ export default function AdminPremiumPlans() {
               </div>
             )}
           </div>
-        ))}
+        )})}
       </div>
 
       {premiumPlans.length === 0 && (
@@ -171,26 +195,41 @@ export default function AdminPremiumPlans() {
               </h3>
               
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Plan Name</label>
-                  <input
-                    type="text"
-                    value={planForm.name}
-                    onChange={(e) => setPlanForm({...planForm, name: e.target.value})}
-                    placeholder="e.g., 1 Month Premium"
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Plan Name</label>
+                    <input
+                      type="text"
+                      value={planForm.name}
+                      onChange={(e) => setPlanForm({...planForm, name: e.target.value})}
+                      placeholder="e.g., 30 Day Premium"
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Tier</label>
+                    <select
+                      value={planForm.tier}
+                      onChange={(e) => setPlanForm({ ...planForm, tier: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">Select tier (optional)</option>
+                      <option value="bronze">Bronze</option>
+                      <option value="silver">Silver</option>
+                      <option value="gold">Gold</option>
+                    </select>
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Duration (months)</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Duration (days)</label>
                     <input
                       type="number"
                       min="1"
-                      max="12"
+                      max="3650"
                       value={planForm.duration}
-                      onChange={(e) => setPlanForm({...planForm, duration: parseInt(e.target.value || '1', 10)})}
+                      onChange={(e) => setPlanForm({...planForm, duration: parseInt(e.target.value || '30', 10)})}
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
@@ -250,7 +289,7 @@ export default function AdminPremiumPlans() {
                 <button
                   onClick={() => {
                     setShowPlanModal(false);
-                    setPlanForm({ name: '', duration: 1, price: 0, discount: 0, requestLimit: 50, features: [] });
+                    setPlanForm({ name: '', duration: 30, price: 0, discount: 0, requestLimit: 50, features: [] });
                     setEditingPlan(null);
                   }}
                   className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold"

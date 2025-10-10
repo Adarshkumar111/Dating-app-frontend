@@ -134,6 +134,13 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
           import('react-toastify').then(({ toast }) => {
             toast.error('❌ Profile changes rejected by admin', { position: 'top-center', autoClose: 5000 })
           })
+        } else if (payload.kind === 'premium:activated') {
+          // Congratulation toast for premium activation
+          import('react-toastify').then(({ toast }) => {
+            const tier = String(payload.tier || '').toUpperCase() || 'PREMIUM'
+            toast.success(`🎉 Congratulations! Your ${tier} plan is now active.`, { position: 'top-center', autoClose: 6000 })
+          })
+          loadNotifications()
         }
         // Help request toasts
         if (payload.kind === 'request:help:approved') {
@@ -158,12 +165,23 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
       const unsubAdminRequest = onSocketEvent('adminRequest', () => {
         if (user?.isAdmin) loadNotifications()
       })
+
+      // Admin real-time notification on premium payment
+      const unsubAdminPayment = onSocketEvent('adminPayment', (payload) => {
+        if (!user?.isAdmin) return
+        const tier = String(payload?.tier || '').toUpperCase() || 'PREMIUM'
+        import('react-toastify').then(({ toast }) => {
+          toast.info(`💳 New premium purchase: ${tier}`, { position: 'top-center', autoClose: 6000 })
+        })
+        loadNotifications()
+      })
       
       return () => {
         clearInterval(interval)
         unsubUserEvent()
         unsubAdminEdit()
         unsubAdminRequest()
+        unsubAdminPayment()
       }
     }
 

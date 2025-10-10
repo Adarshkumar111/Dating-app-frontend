@@ -329,7 +329,19 @@ export default function ProfileViewPage() {
         )}
         
         {/* Profile Header Card */}
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden mb-6" style={{border:'1px solid #F5DEB3'}}>
+        <div
+          className="rounded-3xl shadow-xl overflow-hidden mb-6"
+          style={{
+            border:'1px solid #F5DEB3',
+            background: profile.isPremium
+              ? (((profile.premiumTier || '').toLowerCase() === 'gold')
+                  ? 'linear-gradient(135deg, #FCE7A2 0%, #F8D776 100%)'
+                  : ((profile.premiumTier || '').toLowerCase() === 'silver')
+                    ? 'linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 100%)'
+                    : 'linear-gradient(135deg, #EFD6C2 0%, #E3B58C 100%)')
+              : '#FFFFFF'
+          }}
+        >
           {/* Cover Background */}
           <div className="h-36 relative rounded-t-3xl" style={{background:'linear-gradient(90deg, #C9A227, #F5DEB3)'}}>
             <div className="absolute inset-0" style={{backgroundColor:'#F5DEB3', opacity:0.1}}></div>
@@ -353,6 +365,24 @@ export default function ProfileViewPage() {
                     <span className="text-2xl font-bold text-white">{profile.name?.[0]?.toUpperCase() || '?'}</span>
                   </div>
                 )}
+              </div>
+            )}
+            {/* Tier Badge under profile photo */}
+            {profile.isPremium && (
+              <div className="flex justify-center mb-2">
+                {(() => {
+                  const tier = (profile.premiumTier || '').toLowerCase();
+                  // Premium palette
+                  const bg = tier === 'gold' ? '#FCE7A2' : tier === 'silver' ? '#E5E7EB' : '#EFD6C2';
+                  const fg = tier === 'gold' ? '#8B6B00' : tier === 'silver' ? '#4B5563' : '#7C4A21';
+                  const br = tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : '#CD7F32';
+                  const label = tier ? tier.toUpperCase() : 'PREMIUM';
+                  return (
+                    <span className="px-3 py-1 text-xs font-extrabold rounded-full border" style={{ backgroundColor: bg, color: fg, borderColor: br }}>
+                      {label}
+                    </span>
+                  )
+                })()}
               </div>
             )}
             
