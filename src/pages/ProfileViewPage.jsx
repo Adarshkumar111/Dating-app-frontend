@@ -465,11 +465,11 @@ export default function ProfileViewPage() {
                   </button>
                   <button
                     onClick={handleToggleVisibility}
-                    className="px-5 py-2.5 rounded-lg font-semibold shadow transition"
-                    style={{backgroundColor:'#B8860B', color:'#FFFFFF'}}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold shadow transition-all duration-200 border ${profile?.isPublic ? 'bg-amber-600 text-white hover:bg-amber-700 border-amber-700' : 'bg-white text-amber-700 hover:bg-amber-50 border-amber-300 opacity-90'}`}
                     title={profile?.isPublic ? 'Make Private' : 'Make Public'}
                   >
-                    {profile?.isPublic ? 'Make Private' : 'Make Public'}
+                    {profile?.isPublic ? <MdPublic /> : <MdLock />}
+                    <span>{profile?.isPublic ? 'Public' : 'Private'}</span>
                   </button>
                 </div>
               )}

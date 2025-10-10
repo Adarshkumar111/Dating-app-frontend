@@ -140,44 +140,7 @@ export default function AdminSettings() {
         Save Settings
       </button>
 
-      {/* Auth Settings */}
-      <div className="mt-10 border-t pt-6">
-        <h3 className="text-2xl font-bold mb-4 text-gray-800">Auth Settings</h3>
-        <p className="text-sm text-gray-500 mb-4">Choose which identifier users can log in with. Email verification is still required.</p>
-        <div className="flex flex-col md:flex-row gap-3">
-          {[
-            ['email','Email'],
-            ['contact','Phone Number'],
-            ['itNumber','IT Number']
-          ].map(([val,label]) => (
-            <label key={val} className="flex items-center gap-2 p-3 border rounded-lg">
-              <input
-                type="radio"
-                name="loginIdentifier"
-                checked={(appSettings.auth?.loginIdentifier || 'email') === val}
-                onChange={() => setAppSettings(prev => ({ ...prev, auth: { ...(prev.auth || {}), loginIdentifier: val } }))}
-              />
-              <span>{label}</span>
-            </label>
-          ))}
-        </div>
-        <button
-          onClick={async () => {
-            try {
-              await updateAppSettings({ auth: appSettings.auth || { loginIdentifier: 'email' } })
-              setInfo('Auth settings saved')
-              toast.success('Auth settings saved')
-            } catch (e) {
-              const msg = 'Failed to save auth settings: ' + (e.response?.data?.message || e.message)
-              setInfo(msg)
-              toast.error(msg)
-            }
-          }}
-          className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
-        >
-          Save Auth Settings
-        </button>
-      </div>
+      {/* Auth Settings removed: app uses email-only login */}
 
       {/* Pre-Auth Banner Controls */}
       <div className="mt-10 border-t pt-6">
@@ -227,7 +190,8 @@ export default function AdminSettings() {
           {[
             ['age','Age'],
             ['education','Education'],
-            ['occupation','Occupation'],
+            ['state','State'],
+            ['district','District'],
             ['nameSearch','Name Search']
           ].map(([key,label]) => (
             <label key={key} className="flex items-center gap-2 p-3 border rounded-lg">

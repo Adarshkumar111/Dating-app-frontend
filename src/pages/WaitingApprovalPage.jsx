@@ -26,7 +26,7 @@ export default function WaitingApprovalPage(){
           {/* Content */}
           <div className="px-6 py-8 text-center space-y-4">
             <div>
-              <h1 className="text-xl font-bold text-blue-500 mb-2">Waiting For Approval</h1>
+              <h1 className="text-xl font-bold text-blue-500 mb-2">Waiting for Approval</h1>
               <p className="text-xs text-blue-400 leading-relaxed">
                 Ut labore et dolore roipit mana aliqua. Enim adesp minim veeniam nostruklad
               </p>
@@ -35,7 +35,7 @@ export default function WaitingApprovalPage(){
             <div className="pt-2">
               <h2 className="text-base font-semibold text-gray-800 mb-2">Hello {user?.name || 'User'}! 👋</h2>
               <p className="text-gray-600 text-sm mb-4">
-                Your account is pending admin approval. This process usually takes up to 24 hours.
+                Your account is pending. Waiting for approval (up to 24 hours).
               </p>
             </div>
 
@@ -47,11 +47,11 @@ export default function WaitingApprovalPage(){
               <ul className="text-xs text-gray-700 space-y-1.5">
                 <li className="flex items-start">
                   <span className="mr-2 mt-0.5 text-blue-500">✓</span>
-                  Our admin team will review your profile and documents
+                  Your profile and documents will be reviewed shortly
                 </li>
                 <li className="flex items-start">
                   <span className="mr-2 mt-0.5 text-blue-500">✓</span>
-                  You'll receive approval within 24 hours
+                  You should receive approval within 24 hours
                 </li>
                 <li className="flex items-start">
                   <span className="mr-2 mt-0.5 text-blue-500">✓</span>
@@ -74,7 +74,7 @@ export default function WaitingApprovalPage(){
 
             <div className="pt-2">
               <p className="text-xs text-gray-400">
-                Thank you for your patience. We'll notify you once your account is approved.
+                Thank you for your patience. We’ll notify you as soon as your account is approved.
               </p>
             </div>
           </div>

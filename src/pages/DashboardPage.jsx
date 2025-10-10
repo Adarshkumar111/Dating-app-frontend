@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
 import { listOpposite, rejectUser, getFriends } from '../services/userService.js';
-import { getEnabledFilters } from '../services/publicService.js';
+import { getEnabledFilters, getStates, getDistricts } from '../services/publicService.js';
 import { getAppSettings } from '../services/adminService.js';
 import { sendRequest, unfollow, cancelRequest } from '../services/requestService.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -23,6 +23,8 @@ export default function DashboardPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [profileDisplay, setProfileDisplay] = useState({});
   const [profileDisplayLoaded, setProfileDisplayLoaded] = useState(false);
+  // Responsive flag to avoid rendering mobile portal on desktop (and vice-versa)
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : false));
   // Mobile filters overlay positioning
   const mobileFilterAnchorRef = useRef(null);
   const [mobilePopoverTop, setMobilePopoverTop] = useState(null);
@@ -53,7 +55,10 @@ export default function DashboardPage() {
 
   // Filters state
   const [enabledFilters, setEnabledFilters] = useState({ age: true, education: true, occupation: true, nameSearch: true });
-  const [filters, setFilters] = useState({ page: 1, ageMin: '', ageMax: '', education: '', occupation: '', name: '' });
+  // Use 'state' in place of 'occupation' for filter per requirement
+  const [filters, setFilters] = useState({ page: 1, ageMin: '', ageMax: '', education: '', state: '', district: '', name: '' });
+  const [states, setStates] = useState([]);
+  const [districts, setDistricts] = useState([]);
   const [searchDebounce, setSearchDebounce] = useState(null);
 
   // Debounce search to reduce API calls
@@ -76,12 +81,20 @@ export default function DashboardPage() {
     }
   }, [showFilters, mobileFilterAnchorRef]);
 
+  // Track viewport changes to decide which filter UI to render
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const loadUsers = async () => {
     const query = { page: filters.page };
     if (filters.ageMin) query.ageMin = filters.ageMin;
     if (filters.ageMax) query.ageMax = filters.ageMax;
     if (filters.education) query.education = filters.education;
-    if (filters.occupation) query.occupation = filters.occupation;
+    if (filters.state) query.state = filters.state;
+    if (filters.district) query.district = filters.district;
     if (filters.name) query.name = filters.name;
     const res = await listOpposite(query);
     setUsers(res.items || []);
@@ -140,11 +153,31 @@ export default function DashboardPage() {
       try {
         const data = await getEnabledFilters();
         if (data?.enabledFilters) setEnabledFilters(data.enabledFilters);
+        // Fetch states for place dropdown
+        try {
+          const s = await getStates();
+          setStates(Array.isArray(s?.states) ? s.states : []);
+        } catch {}
       } catch (e) {
         // Ignore failure, keep defaults
       }
     })();
   }, []);
+
+  // Load districts whenever state changes
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!filters.state) { setDistricts([]); return; }
+        const d = await getDistricts(filters.state);
+        setDistricts(Array.isArray(d?.districts) ? d.districts : []);
+        // If current district not in list, clear it
+        if (filters.district && !d?.districts?.includes(filters.district)) {
+          setFilters(prev => ({ ...prev, district: '' }));
+        }
+      } catch {}
+    })();
+  }, [filters.state]);
 
   // Load profile display controls once
   useEffect(() => {
@@ -294,7 +327,7 @@ export default function DashboardPage() {
             )}
           </button>
           {/* Filters button (desktop only, same size as tabs) */}
-          {tab === 'dashboard' && (
+          {tab === 'dashboard' && !isMobile && (
             <div className={`relative ${showFilters ? 'z-[10000]' : ''}`}>
               <button
                 onClick={() => setShowFilters((s) => !s)}
@@ -304,7 +337,7 @@ export default function DashboardPage() {
               >
                 Filters
               </button>
-              {showFilters && (
+              {showFilters && !isMobile && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowFilters(false)} />
                   <div className="absolute right-0 mt-2 w-[min(90vw,520px)] bg-white rounded-xl shadow-md p-2 z-50" style={{border: '2px solid #D4AF37'}}>
@@ -320,12 +353,25 @@ export default function DashboardPage() {
                         <input type="text" placeholder="Education" value={filters.education} onChange={(e) => setFilters({ ...filters, education: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
                       )}
                       {enabledFilters.occupation && (
-                        <input type="text" placeholder="Occupation" value={filters.occupation} onChange={(e) => setFilters({ ...filters, occupation: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
+                        <>
+                          <select value={filters.state} onChange={(e) => setFilters({ ...filters, state: e.target.value, district: '' })} className="w-full px-2.5 py-1.5 rounded-lg text-sm bg-white" style={{border: '2px solid #D4AF37'}}>
+                            <option value="">State</option>
+                            {states.map((st) => (
+                              <option key={st} value={st}>{st}</option>
+                            ))}
+                          </select>
+                          <select value={filters.district} onChange={(e) => setFilters({ ...filters, district: e.target.value })} disabled={!filters.state} className="w-full px-2.5 py-1.5 rounded-lg text-sm bg-white disabled:bg-gray-100" style={{border: '2px solid #D4AF37'}}>
+                            <option value="">District</option>
+                            {districts.map((d) => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </select>
+                        </>
                       )}
                     </div>
                     <div className="mt-2 flex gap-2 justify-end">
                       <button onClick={() => { setShowFilters(false); loadUsers(); }} className="px-3 py-1.5 text-white rounded-lg text-sm" style={{backgroundColor: '#B8860B'}}>Apply</button>
-                      <button onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', occupation: '', name: '' }); setShowFilters(false); setLoading(true); loadUsers(); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Reset</button>
+                      <button onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', state: '', district: '', name: '' }); setShowFilters(false); setLoading(true); loadUsers(); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Reset</button>
                     </div>
                   </div>
                 </>
@@ -339,7 +385,7 @@ export default function DashboardPage() {
           className="md:hidden flex justify-center gap-3 mt-3"
           style={{ position: 'fixed', top: '140px', left: 0, right: 0, backgroundColor: '#FFF8E7', zIndex: 1000, padding: '0 16px' }}
         >
-          {tab === 'dashboard' && (
+          {tab === 'dashboard' && isMobile && (
             <div className={`relative ${showFilters ? 'z-[10000]' : ''}`}>
               <button
                 onClick={() => setShowFilters((s) => !s)}
@@ -350,7 +396,7 @@ export default function DashboardPage() {
               >
                 Filters
               </button>
-              {showFilters && createPortal(
+              {showFilters && isMobile && createPortal(
                 <>
                   <div className="fixed inset-0 z-[2000]" onClick={() => setShowFilters(false)} />
                   <div
@@ -369,12 +415,25 @@ export default function DashboardPage() {
                         <input type="text" placeholder="Education" value={filters.education} onChange={(e) => setFilters({ ...filters, education: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
                       )}
                       {enabledFilters.occupation && (
-                        <input type="text" placeholder="Occupation" value={filters.occupation} onChange={(e) => setFilters({ ...filters, occupation: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
+                        <>
+                          <select value={filters.state} onChange={(e) => setFilters({ ...filters, state: e.target.value, district: '' })} className="w-full px-2.5 py-1.5 rounded-lg text-sm bg-white" style={{border: '2px solid #D4AF37'}}>
+                            <option value="">State</option>
+                            {states.map((st) => (
+                              <option key={st} value={st}>{st}</option>
+                            ))}
+                          </select>
+                          <select value={filters.district} onChange={(e) => setFilters({ ...filters, district: e.target.value })} disabled={!filters.state} className="w-full px-2.5 py-1.5 rounded-lg text-sm bg-white disabled:bg-gray-100" style={{border: '2px solid #D4AF37'}}>
+                            <option value="">District</option>
+                            {districts.map((d) => (
+                              <option key={d} value={d}>{d}</option>
+                            ))}
+                          </select>
+                        </>
                       )}
                     </div>
                     <div className="mt-2 flex gap-2 justify-end">
                       <button onClick={() => { setShowFilters(false); loadUsers(); }} className="px-3 py-1.5 text-white rounded-lg text-sm" style={{backgroundColor: '#B8860B'}}>Apply</button>
-                      <button onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', occupation: '', name: '' }); setShowFilters(false); setLoading(true); loadUsers(); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Reset</button>
+                      <button onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', state: '', district: '', name: '' }); setShowFilters(false); setLoading(true); loadUsers(); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Reset</button>
                     </div>
                   </div>
                 </>,

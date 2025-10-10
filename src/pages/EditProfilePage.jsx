@@ -106,11 +106,11 @@ export default function EditProfilePage() {
       fd.append('replaceGallery', 'true')
       
       const res = await updateProfile(fd)
-      toast.success('✅ Your profile changes have been submitted for admin approval!', {
+      toast.success('✅ Changes submitted. Waiting for approval.', {
         position: 'top-center',
         autoClose: 4000
       })
-      setInfo(res?.message || 'Edits submitted for admin approval')
+      setInfo(res?.message || 'Waiting for approval')
       setLoading(false)
     } catch (error) {
       setLoading(false)
