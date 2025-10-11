@@ -8,6 +8,7 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState({
     freeUserRequestLimit: 2,
+    premiumUserRequestLimit: 20,
     notifyFollowRequestEmail: false,
   });
   const [appSettings, setAppSettings] = useState({ enabledFilters: {}, profileDisplayFields: {}, preAuthBanner: { enabled: false, imageUrl: '' }, auth: { loginIdentifier: 'email' } });
@@ -102,7 +103,7 @@ export default function AdminSettings() {
       {/* Inline info banner removed; toasts will show feedback */}
 
       {/* Request Limits */}
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Free User Daily Request Limit
@@ -116,6 +117,20 @@ export default function AdminSettings() {
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
           />
           <p className="text-sm text-gray-500 mt-1">Number of follow requests free users can send per day</p>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Premium User Daily Request Limit (fallback)
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="500"
+            value={settings.premiumUserRequestLimit}
+            onChange={(e) => setSettings({ ...settings, premiumUserRequestLimit: parseInt(e.target.value || '0', 10) })}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+          <p className="text-sm text-gray-500 mt-1">Used when a premium plan doesn’t have its own requestLimit. Plan-specific limit takes priority.</p>
         </div>
         <div className="md:col-span-2">
           <label className="block text-sm font-semibold text-gray-700 mb-2">

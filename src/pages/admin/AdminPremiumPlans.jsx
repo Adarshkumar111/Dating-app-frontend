@@ -16,18 +16,29 @@ export default function AdminPremiumPlans() {
     discount: 0,
     requestLimit: 50,
     features: [],
+    advancedFeatures: {
+      glitteryBackground: false,
+      topPriority: false,
+      viewAllUsers: false,
+      viewFullProfile: false,
+      viewAllPhotos: false,
+      canMessageWithoutFollow: false,
+      canViewFields: {
+        name: true, age: true, dateOfBirth: false, fatherName: false, motherName: false,
+        itNumber: false, itCardPhoto: false, gender: true, maritalStatus: true, disability: false,
+        countryOfOrigin: false, state: true, district: true, city: true, area: false,
+        contact: false, email: false, education: true, occupation: true, languagesKnown: false,
+        numberOfSiblings: false, about: true, lookingFor: false, profilePhoto: true, galleryImages: false
+      }
+    }
   });
-
-  useEffect(() => {
-    loadPremiumPlans();
-  }, []);
 
   const loadPremiumPlans = async () => {
     try {
       setLoading(true);
       const data = await getPremiumPlans();
-      // Force fixed order: bronze, silver, gold
-      const order = ['bronze','silver','gold'];
+      // Force fixed order: diamond, gold, silver, bronze
+      const order = ['diamond','gold','silver','bronze'];
       const byTier = Object.fromEntries((data || []).map(p => [String(p.tier || '').toLowerCase(), p]));
       const fixed = order.map(t => byTier[t]).filter(Boolean);
       setPremiumPlans(fixed);
@@ -38,12 +49,21 @@ export default function AdminPremiumPlans() {
     }
   };
 
+  useEffect(() => {
+    loadPremiumPlans();
+  }, []);
+
   const handleCreatePlan = async () => {
     try {
-      await createPremiumPlan(planForm);
+      // Filter out empty lines from features
+      const cleanedForm = {
+        ...planForm,
+        features: planForm.features.filter(f => f.trim())
+      };
+      await createPremiumPlan(cleanedForm);
       setInfo('Premium plan created successfully');
       setShowPlanModal(false);
-      setPlanForm({ name: '', tier: '', duration: 30, price: 0, discount: 0, requestLimit: 50, features: [] });
+      setPlanForm({ name: '', tier: '', duration: 30, price: 0, discount: 0, requestLimit: 50, features: [], advancedFeatures: { glitteryBackground: false, topPriority: false, viewAllUsers: false, viewFullProfile: false, viewAllPhotos: false, canMessageWithoutFollow: false, canViewFields: { name: true, age: true, dateOfBirth: false, fatherName: false, motherName: false, itNumber: false, itCardPhoto: false, gender: true, maritalStatus: true, disability: false, countryOfOrigin: false, state: true, district: true, city: true, area: false, contact: false, email: false, education: true, occupation: true, languagesKnown: false, numberOfSiblings: false, about: true, lookingFor: false, profilePhoto: true, galleryImages: false } } });
       loadPremiumPlans();
     } catch (e) {
       setInfo('Failed to create premium plan: ' + (e.response?.data?.message || e.message));
@@ -52,11 +72,16 @@ export default function AdminPremiumPlans() {
 
   const handleUpdatePlan = async () => {
     try {
-      await updatePremiumPlan(editingPlan._id, planForm);
+      // Filter out empty lines from features
+      const cleanedForm = {
+        ...planForm,
+        features: planForm.features.filter(f => f.trim())
+      };
+      await updatePremiumPlan(editingPlan._id, cleanedForm);
       setInfo('Premium plan updated successfully');
       setShowPlanModal(false);
       setEditingPlan(null);
-      setPlanForm({ name: '', tier: '', duration: 30, price: 0, discount: 0, requestLimit: 50, features: [] });
+      setPlanForm({ name: '', tier: '', duration: 30, price: 0, discount: 0, requestLimit: 50, features: [], advancedFeatures: { glitteryBackground: false, topPriority: false, viewAllUsers: false, viewFullProfile: false, viewAllPhotos: false, canViewFields: { name: true, age: true, dateOfBirth: false, fatherName: false, motherName: false, itNumber: false, itCardPhoto: false, gender: true, maritalStatus: true, disability: false, countryOfOrigin: false, state: true, district: true, city: true, area: false, contact: false, email: false, education: true, occupation: true, languagesKnown: false, numberOfSiblings: false, about: true, lookingFor: false, profilePhoto: true, galleryImages: false } } });
       loadPremiumPlans();
     } catch (e) {
       setInfo('Failed to update premium plan: ' + (e.response?.data?.message || e.message));
@@ -84,6 +109,7 @@ export default function AdminPremiumPlans() {
       discount: plan.discount,
       requestLimit: plan.requestLimit,
       features: plan.features || [],
+      advancedFeatures: plan.advancedFeatures || { glitteryBackground: false, topPriority: false, viewAllUsers: false, viewFullProfile: false, viewAllPhotos: false, canMessageWithoutFollow: false, canViewFields: { name: true, age: true, dateOfBirth: false, fatherName: false, motherName: false, itNumber: false, itCardPhoto: false, gender: true, maritalStatus: true, disability: false, countryOfOrigin: false, state: true, district: true, city: true, area: false, contact: false, email: false, education: true, occupation: true, languagesKnown: false, numberOfSiblings: false, about: true, lookingFor: false, profilePhoto: true, galleryImages: false } }
     });
     setShowPlanModal(true);
   };
@@ -91,13 +117,14 @@ export default function AdminPremiumPlans() {
   const openCreateForTier = (tier) => {
     setEditingPlan(null);
     setPlanForm({
-      name: tier === 'gold' ? 'Gold Plan' : tier === 'silver' ? 'Silver Plan' : 'Bronze Plan',
+      name: tier === 'diamond' ? 'Diamond Plan' : tier === 'gold' ? 'Gold Plan' : tier === 'silver' ? 'Silver Plan' : 'Bronze Plan',
       tier,
       duration: 30,
       price: 0,
       discount: 0,
       requestLimit: 50,
-      features: []
+      features: [],
+      advancedFeatures: { glitteryBackground: false, topPriority: false, viewAllUsers: false, viewFullProfile: false, viewAllPhotos: false, canMessageWithoutFollow: false, canViewFields: { name: true, age: true, dateOfBirth: false, fatherName: false, motherName: false, itNumber: false, itCardPhoto: false, gender: true, maritalStatus: true, disability: false, countryOfOrigin: false, state: true, district: true, city: true, area: false, contact: false, email: false, education: true, occupation: true, languagesKnown: false, numberOfSiblings: false, about: true, lookingFor: false, profilePhoto: true, galleryImages: false } }
     });
     setShowPlanModal(true);
   };
@@ -116,7 +143,7 @@ export default function AdminPremiumPlans() {
         </h3>
         <button
           onClick={() => {
-            setPlanForm({ name: '', tier: '', duration: 30, price: 0, discount: 0, requestLimit: 50, features: [] });
+            setPlanForm({ name: '', tier: '', duration: 30, price: 0, discount: 0, requestLimit: 50, features: [], advancedFeatures: { glitteryBackground: false, topPriority: false, viewAllUsers: false, viewFullProfile: false, viewAllPhotos: false, canMessageWithoutFollow: false, canViewFields: { name: true, age: true, dateOfBirth: false, fatherName: false, motherName: false, itNumber: false, itCardPhoto: false, gender: true, maritalStatus: true, disability: false, countryOfOrigin: false, state: true, district: true, city: true, area: false, contact: false, email: false, education: true, occupation: true, languagesKnown: false, numberOfSiblings: false, about: true, lookingFor: false, profilePhoto: true, galleryImages: false } } });
             setEditingPlan(null);
             setShowPlanModal(true);
           }}
@@ -126,15 +153,22 @@ export default function AdminPremiumPlans() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {['bronze','silver','gold'].map((tier) => {
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {['diamond','gold','silver','bronze'].map((tier) => {
           const plan = premiumPlans.find(p => String(p.tier || '').toLowerCase() === tier);
-          const palette = tier === 'gold' ? {bg:'#FCE7A2', fg:'#8B6B00', br:'#D4AF37'} : tier === 'silver' ? {bg:'#E5E7EB', fg:'#4B5563', br:'#C0C0C0'} : {bg:'#EFD6C2', fg:'#7C4A21', br:'#CD7F32'}
+          const palette =
+            tier === 'diamond'
+              ? { bg: '#E0F7FF', fg: '#0EA5E9', br: '#38BDF8' }
+              : tier === 'gold'
+              ? { bg: '#FCE7A2', fg: '#8B6B00', br: '#D4AF37' }
+              : tier === 'silver'
+              ? { bg: '#E5E7EB', fg: '#4B5563', br: '#C0C0C0' }
+              : { bg: '#EFD6C2', fg: '#7C4A21', br: '#CD7F32' };
           return (
           <div key={plan?._id || tier} className="bg-white rounded-xl shadow-md p-6 border-2 border-purple-100">
             <div className="flex justify-between items-start mb-4">
               <h4 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                {plan?.name || (tier === 'gold' ? 'Gold Plan' : tier === 'silver' ? 'Silver Plan' : 'Bronze Plan')}
+                {plan?.name || (tier === 'diamond' ? 'Diamond Plan' : tier === 'gold' ? 'Gold Plan' : tier === 'silver' ? 'Silver Plan' : 'Bronze Plan')}
                 <span className="text-xs font-extrabold px-2 py-0.5 rounded-full border" style={{ backgroundColor: palette.bg, color: palette.fg, borderColor: palette.br }}>
                   {tier.toUpperCase()}
                 </span>
@@ -214,6 +248,7 @@ export default function AdminPremiumPlans() {
                       className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     >
                       <option value="">Select tier (optional)</option>
+                      <option value="diamond">Diamond</option>
                       <option value="bronze">Bronze</option>
                       <option value="silver">Silver</option>
                       <option value="gold">Gold</option>
@@ -277,19 +312,96 @@ export default function AdminPremiumPlans() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Features (one per line)</label>
                   <textarea
                     value={planForm.features.join('\n')}
-                    onChange={(e) => setPlanForm({...planForm, features: e.target.value.split('\n').filter(f => f.trim())})}
+                    onChange={(e) => setPlanForm({...planForm, features: e.target.value.split('\n')})}
                     placeholder="Unlimited messages&#10;Priority support&#10;Advanced search filters"
-                    rows="4"
+                    rows="6"
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
+
+                {/* Advanced Features for all tiers */}
+                {planForm.tier && (
+                  <div className="border-t pt-4 mt-4">
+                    <h4 className="text-lg font-bold text-purple-700 mb-4">Advanced Features ({String(planForm.tier).toUpperCase()})</h4>
+                    
+                    <div className="space-y-3 mb-4">
+                      <label className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg cursor-pointer hover:bg-purple-100">
+                        <input
+                          type="checkbox"
+                          checked={planForm.advancedFeatures?.glitteryBackground || false}
+                          onChange={(e) => setPlanForm({...planForm, advancedFeatures: {...planForm.advancedFeatures, glitteryBackground: e.target.checked}})}
+                          className="w-5 h-5 text-purple-600"
+                        />
+                        <span className="font-semibold text-gray-800">Glittery Background (Transparent GIF)</span>
+                      </label>
+                      
+                      <label className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg cursor-pointer hover:bg-purple-100">
+                        <input
+                          type="checkbox"
+                          checked={planForm.advancedFeatures?.topPriority || false}
+                          onChange={(e) => setPlanForm({...planForm, advancedFeatures: {...planForm.advancedFeatures, topPriority: e.target.checked}})}
+                          className="w-5 h-5 text-purple-600"
+                        />
+                        <span className="font-semibold text-gray-800">Top Priority (Show on very top)</span>
+                      </label>
+                      
+                      <label className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg cursor-pointer hover:bg-purple-100">
+                        <input
+                          type="checkbox"
+                          checked={planForm.advancedFeatures?.viewAllUsers || false}
+                          onChange={(e) => setPlanForm({...planForm, advancedFeatures: {...planForm.advancedFeatures, viewAllUsers: e.target.checked}})}
+                          className="w-5 h-5 text-purple-600"
+                        />
+                        <span className="font-semibold text-gray-800">View All Users</span>
+                      </label>
+                      
+                      <label className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg cursor-pointer hover:bg-purple-100">
+                        <input
+                          type="checkbox"
+                          checked={planForm.advancedFeatures?.viewAllPhotos || false}
+                          onChange={(e) => setPlanForm({...planForm, advancedFeatures: {...planForm.advancedFeatures, viewAllPhotos: e.target.checked}})}
+                          className="w-5 h-5 text-purple-600"
+                        />
+                        <span className="font-semibold text-gray-800">View All Photos (Gallery)</span>
+                      </label>
+
+                      <label className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg cursor-pointer hover:bg-purple-100">
+                        <input
+                          type="checkbox"
+                          checked={planForm.advancedFeatures?.canMessageWithoutFollow || false}
+                          onChange={(e) => setPlanForm({...planForm, advancedFeatures: {...planForm.advancedFeatures, canMessageWithoutFollow: e.target.checked}})}
+                          className="w-5 h-5 text-purple-600"
+                        />
+                        <span className="font-semibold text-gray-800">Allow Direct Messaging (without follow)</span>
+                      </label>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <h5 className="font-bold text-gray-800 mb-3">Fields this tier can view:</h5>
+                      <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                        {Object.keys(planForm.advancedFeatures?.canViewFields || {}).map(field => (
+                          <label key={field} className="flex items-center gap-2 p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100">
+                            <input
+                              type="checkbox"
+                              checked={planForm.advancedFeatures?.canViewFields?.[field] || false}
+                              onChange={(e) => setPlanForm({...planForm, advancedFeatures: {...planForm.advancedFeatures, canViewFields: {...planForm.advancedFeatures.canViewFields, [field]: e.target.checked}}})}
+                              className="w-4 h-4 text-purple-600"
+                            />
+                            <span className="text-sm text-gray-700">{field}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">Note: Chat history is only visible to admin, not diamond users</p>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="flex gap-4 mt-6">
                 <button
                   onClick={() => {
                     setShowPlanModal(false);
-                    setPlanForm({ name: '', duration: 30, price: 0, discount: 0, requestLimit: 50, features: [] });
+                    setPlanForm({ name: '', tier: '', duration: 30, price: 0, discount: 0, requestLimit: 50, features: [], advancedFeatures: { glitteryBackground: false, topPriority: false, viewAllUsers: false, viewFullProfile: false, viewAllPhotos: false, canMessageWithoutFollow: false, canViewFields: { name: true, age: true, dateOfBirth: false, fatherName: false, motherName: false, itNumber: false, itCardPhoto: false, gender: true, maritalStatus: true, disability: false, countryOfOrigin: false, state: true, district: true, city: true, area: false, contact: false, email: false, education: true, occupation: true, languagesKnown: false, numberOfSiblings: false, about: true, lookingFor: false, profilePhoto: true, galleryImages: false } } });
                     setEditingPlan(null);
                   }}
                   className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold"

@@ -46,7 +46,7 @@ export default function BlockedUsersPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto mt-10 p-6 bg-white rounded-xl shadow-lg">
+    <div className="max-w-3xl mx-auto mt-10 p-6 pb-24 md:pb-6 bg-white rounded-xl shadow-lg">
       <h1 className="text-2xl font-bold mb-4">Blocked Users</h1>
       {info && <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded border border-blue-200">{info}</div>}
       {loading ? (

@@ -89,6 +89,17 @@ export default function PremiumPage(){
         }
       }
 
+      // Avoid external app prompts (xdg-open/upi intents) on desktop by hiding UPI
+      try {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        if (!isMobile) {
+          options.config = {
+            ...(options.config || {}),
+            display: { ...(options.config?.display || {}), hide: ['upi'] }
+          }
+        }
+      } catch {}
+
       // Check if Razorpay is available (fallback for development)
       if (window.Razorpay) {
         const rzp = new window.Razorpay(options)
@@ -119,7 +130,7 @@ export default function PremiumPage(){
   )
 
   return (
-    <div className="min-h-screen bg-[#FFF8E7] py-8 px-4">
+    <div className="min-h-screen bg-[#FFF8E7] py-8 px-4 pb-24 md:pb-8">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-800 mb-4 flex items-center justify-center gap-3">
@@ -147,9 +158,9 @@ export default function PremiumPage(){
               const exp = me.premiumExpiresAt ? new Date(me.premiumExpiresAt) : null
               const remainDays = exp ? Math.max(0, Math.ceil((exp - now) / (1000 * 60 * 60 * 24))) : 0
               const tier = String(me.premiumTier || '').toLowerCase()
-              const bg = tier === 'gold' ? '#FCE7A2' : tier === 'silver' ? '#E5E7EB' : '#EFD6C2'
-              const fg = tier === 'gold' ? '#8B6B00' : tier === 'silver' ? '#4B5563' : '#7C4A21'
-              const br = tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : '#CD7F32'
+              const bg = tier === 'diamond' ? '#E0F7FF' : tier === 'gold' ? '#FCE7A2' : tier === 'silver' ? '#E5E7EB' : '#EFD6C2'
+              const fg = tier === 'diamond' ? '#0EA5E9' : tier === 'gold' ? '#8B6B00' : tier === 'silver' ? '#4B5563' : '#7C4A21'
+              const br = tier === 'diamond' ? '#38BDF8' : tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : '#CD7F32'
               const plan = plans.find(p => String(p._id) === String(me.premiumPlan)) || plans.find(p => String(p.tier).toLowerCase() === tier)
               const totalDays = plan?.duration ? Number(plan.duration) : null
               const usedDays = totalDays != null && exp ? Math.max(0, totalDays - remainDays) : null
@@ -210,10 +221,10 @@ export default function PremiumPage(){
             <p className="text-gray-500">Premium plans are being configured. Please check back later!</p>
           </div>
         ) : (
-          <div id="plans-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div id="plans-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
             {(() => {
               // pick first plan per tier in fixed order to avoid duplicates
-              const order = ['bronze','silver','gold']
+              const order = ['diamond','gold','silver','bronze']
               const firstPerTier = {}
               const deduped = []
               for (const p of plans) {
@@ -230,9 +241,9 @@ export default function PremiumPage(){
               const finalPrice = plan.price - (plan.price * plan.discount / 100)
               const isPopular = index === 1 // Middle plan is popular
               const tier = (plan.tier || '').toLowerCase()
-              const tierBg = tier === 'gold' ? '#FCE7A2' : tier === 'silver' ? '#E5E7EB' : tier === 'bronze' ? '#EFD6C2' : 'transparent'
-              const tierFg = tier === 'gold' ? '#8B6B00' : tier === 'silver' ? '#4B5563' : tier === 'bronze' ? '#7C4A21' : '#374151'
-              const tierBr = tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : tier === 'bronze' ? '#CD7F32' : 'rgba(0,0,0,0.06)'
+              const tierBg = tier === 'diamond' ? '#E0F7FF' : tier === 'gold' ? '#FCE7A2' : tier === 'silver' ? '#E5E7EB' : tier === 'bronze' ? '#EFD6C2' : 'transparent'
+              const tierFg = tier === 'diamond' ? '#0EA5E9' : tier === 'gold' ? '#8B6B00' : tier === 'silver' ? '#4B5563' : tier === 'bronze' ? '#7C4A21' : '#374151'
+              const tierBr = tier === 'diamond' ? '#38BDF8' : tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : tier === 'bronze' ? '#CD7F32' : 'rgba(0,0,0,0.06)'
 
               return (
                 <div

@@ -177,7 +177,7 @@ export default function EditProfilePage() {
   const firstLetter = currentUser?.name?.[0]?.toUpperCase() || 'U'
 
   return (
-    <div className="min-h-screen bg-[#FFF8E7] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#FFF8E7] flex items-center justify-center p-4 pb-24 md:pb-4">
       <div className="w-full max-w-sm md:max-w-2xl lg:max-w-3xl">
         {/* Card Container */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">

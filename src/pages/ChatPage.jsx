@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getChatWithUser, sendMessage as sendMsg, deleteMessage as delMsg, addReaction as addReact, uploadMedia, markAsSeen, blockChat, unblockChat } from '../services/chatService.js'
+import { getIncoming, respondToRequest } from '../services/requestService.js'
 import { blockUser, unblockUser } from '../services/userService.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { IoMdAdd, IoMdClose, IoMdNotifications } from 'react-icons/io'
 import { MdImage, MdVideocam, MdCamera, MdPhotoLibrary, MdVideoLibrary, MdSend, MdDoneAll, MdDone, MdBlock, MdMoreVert } from 'react-icons/md'
 import { BsEmojiSmile } from 'react-icons/bs'
 import { connectSocket, getSocket } from '../services/socketService.js'
+import { toast } from 'react-toastify'
 
 export default function ChatPage() {
     const { chatId: userIdParam } = useParams()
@@ -30,6 +32,14 @@ export default function ChatPage() {
     const [showOptions, setShowOptions] = useState(false)
     const [isUserBlocked, setIsUserBlocked] = useState(false)
     const [unreadCount, setUnreadCount] = useState(0)
+    const [pendingRequestId, setPendingRequestId] = useState(null)
+
+    // Center popup for important notices (e.g., pending approval cannot reply)
+    const [centerPopup, setCenterPopup] = useState(null) // string | null
+    const showCenter = (msg) => {
+        try { setCenterPopup(String(msg || '')); } catch { setCenterPopup(''); }
+        setTimeout(() => setCenterPopup(null), 2400)
+    }
 
     const navigate = useNavigate()
     const chatEndRef = useRef(null)
@@ -167,6 +177,43 @@ export default function ChatPage() {
         } catch (e) {
             alert(e.response?.data?.message || 'Failed to load chat')
             setLoading(false)
+        }
+    }
+
+    // When chat is pending, try to resolve the corresponding incoming chat request id
+    useEffect(() => {
+        (async () => {
+            try {
+                if (chatData?.isPending) {
+                    const incoming = await getIncoming()
+                    const match = (incoming || []).find(r => String(r?.from?._id) === String(userIdParam) && r.type === 'chat')
+                    setPendingRequestId(match?._id || null)
+                } else {
+                    setPendingRequestId(null)
+                }
+            } catch {}
+        })()
+    }, [chatData?.isPending, userIdParam])
+
+    const handleAcceptPending = async () => {
+        if (!pendingRequestId) return
+        try {
+            await respondToRequest({ requestId: pendingRequestId, action: 'accept' })
+            await loadChat()
+            window.dispatchEvent(new Event('requestStatusChanged'))
+        } catch (e) {
+            alert(e.response?.data?.message || 'Failed to accept request')
+        }
+    }
+
+    const handleRejectPending = async () => {
+        if (!pendingRequestId) return
+        try {
+            await respondToRequest({ requestId: pendingRequestId, action: 'reject' })
+            window.dispatchEvent(new Event('requestStatusChanged'))
+            navigate('/dashboard?tab=messages')
+        } catch (e) {
+            alert(e.response?.data?.message || 'Failed to reject request')
         }
     }
 
@@ -434,10 +481,14 @@ export default function ChatPage() {
     )
     if (!chatData) return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
-            <div className="text-center">
-                <div className="text-6xl mb-4">💬</div>
-                <h2 className="text-2xl font-bold mb-2" style={{color: '#B8860B'}}>Chat Not Found</h2>
-                <p className="text-gray-600">This conversation doesn't exist or you don't have access to it.</p>
+            <div className="max-w-md w-full bg-white rounded-2xl shadow p-6 text-center border" style={{borderColor:'#F5DEB3'}}>
+                <div className="text-5xl mb-3">💬</div>
+                <h2 className="text-xl font-bold mb-2" style={{color: '#B8860B'}}>No conversation yet</h2>
+                <p className="text-gray-700 mb-4">If you or the other user sent a chat request, please wait for it to be accepted. A chat will be created automatically once accepted.</p>
+                <div className="flex gap-2 justify-center">
+                    <button onClick={() => navigate('/dashboard?tab=messages')} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">Back to Messages</button>
+                    <button onClick={() => navigate(-1)} className="px-4 py-2 text-white rounded-lg" style={{backgroundColor:'#B8860B'}}>Go Back</button>
+                </div>
             </div>
         </div>
     )
@@ -556,6 +607,23 @@ export default function ChatPage() {
 
             {/* Messages */}
             <div className="flex-1 p-2 md:p-3 overflow-y-auto flex flex-col gap-2" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', overscrollBehaviorY: 'contain', backgroundColor: '#FFF8E7' }}>
+                {chatData?.isPending && (
+                    <div className="mx-auto w-full max-w-xl mb-2 p-3 rounded-xl text-sm border" style={{ background: '#FFF8E7', borderColor: '#F5DEB3', color: '#B8860B' }}>
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="font-medium">Chat request pending approval</div>
+                            <div className="flex gap-2">
+                                {pendingRequestId ? (
+                                    <>
+                                        <button onClick={handleAcceptPending} className="px-3 py-1 rounded-lg text-white" style={{ backgroundColor: '#16A34A' }}>Accept</button>
+                                        <button onClick={handleRejectPending} className="px-3 py-1 rounded-lg text-white" style={{ backgroundColor: '#DC2626' }}>Reject</button>
+                                    </>
+                                ) : (
+                                    <span className="opacity-75">Waiting for other user…</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {messages.map((m) => {
                     const status = getMessageStatus(m)
                     return (
@@ -742,7 +810,7 @@ export default function ChatPage() {
                     <input ref={videoInputRef} type="file" accept="video/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'video')} className="hidden" />
 
                     <div className="relative">
-                        <button type="button" onClick={() => setShowMediaMenu(!showMediaMenu)} disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem} className="p-2 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300" style={{ color: '#B8860B' }}
+                        <button type="button" onClick={() => setShowMediaMenu(!showMediaMenu)} disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem || (chatData?.isPending && !!pendingRequestId)} className="p-2 rounded-full disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-300" style={{ color: '#B8860B' }}
                           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#FFF8E7')}
                           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                         >
@@ -769,8 +837,8 @@ export default function ChatPage() {
                         <input
                             value={text}
                             onChange={e => setText(e.target.value)}
-                            placeholder={(chatData?.isBlockedByMe || chatData?.isBlockedByThem) ? "Cannot send messages" : "Type a message..."}
-                            disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem}
+                            placeholder={(chatData?.isBlockedByMe || chatData?.isBlockedByThem) ? "Cannot send messages" : ((chatData?.isPending && !!pendingRequestId) ? "Waiting for acceptance..." : "Type a message...")}
+                            disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem || (chatData?.isPending && !!pendingRequestId)}
                             className="w-full pr-12 pl-4 py-2 md:py-2.5 rounded-full border-2 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
                             style={{ borderColor: '#D4AF37' }}
                             onFocus={(e) => (e.currentTarget.style.borderColor = '#B8860B')}
@@ -779,7 +847,7 @@ export default function ChatPage() {
                         <button
                             type="button"
                             onClick={onSend}
-                            disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem}
+                            disabled={chatData?.isBlockedByMe || chatData?.isBlockedByThem || (chatData?.isPending && !!pendingRequestId)}
                             className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 text-white rounded-full disabled:opacity-30 disabled:cursor-not-allowed"
                             style={{ backgroundColor: '#B8860B' }}
                             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#A87300')}
@@ -791,6 +859,15 @@ export default function ChatPage() {
                     </div>
                 </form>
             </div>
+            {centerPopup !== null && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/30" />
+                    <div className="relative mx-4 max-w-sm w-full rounded-2xl shadow-2xl p-4 text-center" style={{ backgroundColor: 'white', border: '2px solid #D4AF37' }}>
+                        <div className="text-lg font-semibold mb-2" style={{ color: '#B8860B' }}>Action needed</div>
+                        <div className="text-sm text-gray-700">{centerPopup || 'Chat pending approval. You cannot reply until you accept.'}</div>
+                    </div>
+                </div>
+            )}
         </div>
         </div>
     )

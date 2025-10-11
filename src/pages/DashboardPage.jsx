@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'react-toastify';
-import { listOpposite, rejectUser, getFriends } from '../services/userService.js';
+import { listOpposite, rejectUser, getFriends, getMe } from '../services/userService.js';
 import { getEnabledFilters, getStates, getDistricts } from '../services/publicService.js';
 import { getAppSettings } from '../services/adminService.js';
-import { sendRequest, unfollow, cancelRequest } from '../services/requestService.js';
+import { sendRequest, unfollow, cancelRequest, respondToRequest } from '../services/requestService.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BsChatDots } from 'react-icons/bs';
 import OnboardingGate from '../components/OnboardingGate.jsx';
@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const [users, setUsers] = useState([]);
   const [friends, setFriends] = useState([]);
   const [unreadTotal, setUnreadTotal] = useState(0);
+  const [meInfo, setMeInfo] = useState(null);
   const [friendsSearch, setFriendsSearch] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') === 'messages' ? 'friends' : 'dashboard';
@@ -28,6 +29,11 @@ export default function DashboardPage() {
   // Mobile filters overlay positioning
   const mobileFilterAnchorRef = useRef(null);
   const [mobilePopoverTop, setMobilePopoverTop] = useState(null);
+  // Dynamic mobile header height (search + filters) spacer
+  const mobileHeaderRef = useRef(null);
+  const [mobileHeaderHeight, setMobileHeaderHeight] = useState(180);
+  // Navbar height (top fixed bar) measurement
+  const [navbarHeight, setNavbarHeight] = useState(86);
 
   // Helper to compute age from date of birth
   const calcAge = (dob) => {
@@ -40,6 +46,40 @@ export default function DashboardPage() {
       if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
       return age >= 0 && age < 130 ? age : null;
     } catch { return null; }
+  };
+
+  // Accept/reject pending chat directly from Messages list
+  const handleAcceptPendingChat = async (friend) => {
+    try {
+      if (!friend?.pendingRequestId) return;
+      await respondToRequest({ requestId: friend.pendingRequestId, action: 'accept' });
+      toast.success('Chat request accepted');
+      loadFriends();
+      window.dispatchEvent(new Event('requestStatusChanged'));
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to accept request');
+    }
+  };
+
+  const handleRejectPendingChat = async (friend) => {
+    try {
+      if (!friend?.pendingRequestId) return;
+      await respondToRequest({ requestId: friend.pendingRequestId, action: 'reject' });
+      toast.info('Chat request rejected');
+      loadFriends();
+      window.dispatchEvent(new Event('requestStatusChanged'));
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to reject request');
+    }
+  };
+
+  const loadMeInfo = async () => {
+    try {
+      const data = await getMe();
+      setMeInfo(data || null);
+    } catch (e) {
+      // ignore if not logged or endpoint unavailable
+    }
   };
 
   // Helper: whether a field is enabled by admin
@@ -83,10 +123,50 @@ export default function DashboardPage() {
 
   // Track viewport changes to decide which filter UI to render
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 768);
+    const onResize = () => {
+      setIsMobile(window.innerWidth < 768);
+      // Recalculate header height on resize
+      if (mobileHeaderRef.current) {
+        setMobileHeaderHeight(Math.ceil(mobileHeaderRef.current.offsetHeight || 180));
+      }
+      // Measure navbar height
+      const candidates = [
+        'header[data-navbar]',
+        'nav[data-navbar]',
+        '#navbar',
+        '.app-navbar',
+        'nav.navbar',
+        'header.navbar',
+        'header',
+        'nav'
+      ];
+      let h = 86;
+      for (const sel of candidates) {
+        const el = document.querySelector(sel);
+        if (el) { h = Math.max(h, Math.ceil(el.getBoundingClientRect().height || 0)); break; }
+      }
+      setNavbarHeight(h || 86);
+    };
     window.addEventListener('resize', onResize);
+    // Initial measure
+    onResize();
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // Measure mobile header height when it mounts/changes
+  useEffect(() => {
+    if (!isMobile) return;
+    const el = mobileHeaderRef.current;
+    if (!el) return;
+    const measure = () => setMobileHeaderHeight(Math.ceil(el.offsetHeight || 180));
+    measure();
+    // Use ResizeObserver if available for dynamic content within header
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(measure);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+  }, [isMobile, showFilters, filters.name]);
 
   const loadUsers = async () => {
     const query = { page: filters.page };
@@ -101,15 +181,16 @@ export default function DashboardPage() {
     // Split pinned vs others (pinned above all)
     const pinned = items.filter(u => (Number(u?.displayPriority) || 0) > 0);
     const others = items.filter(u => (Number(u?.displayPriority) || 0) <= 0);
-    // Group by tier and shuffle within groups: gold > silver > bronze > free
+    // Group by tier and shuffle within groups: diamond > gold > silver > bronze > free
     const normTier = (u) => {
       const t = String(u?.premiumTier || u?.premiumPlan?.tier || '').toLowerCase();
       return u?.isPremium ? (t || 'bronze') : 'free';
     };
-    const groups = { gold: [], silver: [], bronze: [], free: [] };
+    const groups = { diamond: [], gold: [], silver: [], bronze: [], free: [] };
     for (const u of others) {
       const t = normTier(u);
-      if (t === 'gold') groups.gold.push(u);
+      if (t === 'diamond') groups.diamond.push(u);
+      else if (t === 'gold') groups.gold.push(u);
       else if (t === 'silver') groups.silver.push(u);
       else if (t === 'bronze') groups.bronze.push(u);
       else groups.free.push(u);
@@ -126,6 +207,7 @@ export default function DashboardPage() {
     const pinnedShuffled = shuffle(pinnedSorted);
     const ordered = [
       ...pinnedShuffled,
+      ...shuffle(groups.diamond),
       ...shuffle(groups.gold),
       ...shuffle(groups.silver),
       ...shuffle(groups.bronze),
@@ -138,8 +220,26 @@ export default function DashboardPage() {
   const loadFriends = async () => {
     try {
       const data = await getFriends();
-      setFriends(data.friends || []);
-      const total = (data.friends || []).reduce((sum, f) => sum + (Number(f.unreadCount) || 0), 0);
+      const items = Array.isArray(data?.friends) ? data.friends : [];
+      // Deduplicate by friend._id (other user) in case multiple chat docs exist
+      const byId = {};
+      const isActionable = (x) => !!(x?.isPending && x?.pendingRequestId);
+      const ts = (x) => {
+        try { return new Date(x?.lastMessage?.sentAt || 0).getTime() || 0 } catch { return 0 }
+      };
+      for (const f of items) {
+        const k = String(f?._id || '');
+        if (!k) continue;
+        if (!byId[k]) { byId[k] = f; continue; }
+        const a = byId[k];
+        // Prefer actionable pending; otherwise prefer newer lastMessage time
+        if (isActionable(f) && !isActionable(a)) { byId[k] = f; continue; }
+        if (!isActionable(f) && isActionable(a)) { continue; }
+        if (ts(f) >= ts(a)) { byId[k] = f; }
+      }
+      const deduped = Object.values(byId);
+      setFriends(deduped);
+      const total = deduped.reduce((sum, f) => sum + (Number(f.unreadCount) || 0), 0);
       setUnreadTotal(total);
       setLoading(false);
     } catch (e) {
@@ -151,6 +251,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (tab === 'dashboard') {
       loadUsers();
+      loadMeInfo();
     } else {
       loadFriends();
     }
@@ -168,10 +269,12 @@ export default function DashboardPage() {
     };
     
     window.addEventListener('requestStatusChanged', handleRequestUpdate);
+    window.addEventListener('requestStatusChanged', loadMeInfo);
     
     return () => {
       clearInterval(interval);
       window.removeEventListener('requestStatusChanged', handleRequestUpdate);
+      window.removeEventListener('requestStatusChanged', loadMeInfo);
     };
   }, [tab]);
 
@@ -246,6 +349,7 @@ export default function DashboardPage() {
         toast.success('Request sent successfully');
       }
       loadUsers();
+      loadMeInfo();
     } catch (e) {
       if (e.response?.status === 429 && e.response?.data?.needsPremium) {
         // Show message and redirect to premium page if daily limit reached
@@ -414,74 +518,14 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Mobile-only compact filters (fixed under search) */}
-        <div
-          className="md:hidden flex justify-center gap-3 mt-3"
-          style={{ position: 'fixed', top: '140px', left: 0, right: 0, backgroundColor: '#FFF8E7', zIndex: 1000, padding: '0 16px' }}
-        >
-          {tab === 'dashboard' && isMobile && (
-            <div className={`relative ${showFilters ? 'z-[10000]' : ''}`}>
-              <button
-                onClick={() => setShowFilters((s) => !s)}
-                className="px-3 py-2 rounded-xl font-semibold shadow text-sm"
-                style={{backgroundColor: 'white', color: '#B8860B', border: '2px solid #D4AF37'}}
-                aria-label="Filters"
-                ref={mobileFilterAnchorRef}
-              >
-                Filters
-              </button>
-              {showFilters && isMobile && createPortal(
-                <>
-                  <div className="fixed inset-0 z-[2000]" onClick={() => setShowFilters(false)} />
-                  <div
-                    className="fixed left-1/2 w-[85vw] max-w-sm bg-white rounded-xl shadow-md p-3 z-[2100]"
-                    style={{ border: '2px solid #D4AF37', top: mobilePopoverTop ?? 180, transform: 'translateX(-50%)' }}
-                  >
-                    <div className="grid grid-cols-1 gap-2">
-                      {enabledFilters.age && (
-                        <div className="flex items-center gap-2">
-                          <input type="number" placeholder="Age min" value={filters.ageMin} onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
-                          <span className="text-gray-500">-</span>
-                          <input type="number" placeholder="Age max" value={filters.ageMax} onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
-                        </div>
-                      )}
-                      {enabledFilters.education && (
-                        <input type="text" placeholder="Education" value={filters.education} onChange={(e) => setFilters({ ...filters, education: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
-                      )}
-                      {enabledFilters.occupation && (
-                        <>
-                          <select value={filters.state} onChange={(e) => setFilters({ ...filters, state: e.target.value, district: '' })} className="w-full px-2.5 py-1.5 rounded-lg text-sm bg-white" style={{border: '2px solid #D4AF37'}}>
-                            <option value="">State</option>
-                            {states.map((st) => (
-                              <option key={st} value={st}>{st}</option>
-                            ))}
-                          </select>
-                          <select value={filters.district} onChange={(e) => setFilters({ ...filters, district: e.target.value })} disabled={!filters.state} className="w-full px-2.5 py-1.5 rounded-lg text-sm bg-white disabled:bg-gray-100" style={{border: '2px solid #D4AF37'}}>
-                            <option value="">District</option>
-                            {districts.map((d) => (
-                              <option key={d} value={d}>{d}</option>
-                            ))}
-                          </select>
-                        </>
-                      )}
-                    </div>
-                    <div className="mt-2 flex gap-2 justify-end">
-                      <button onClick={() => { setShowFilters(false); loadUsers(); }} className="px-3 py-1.5 text-white rounded-lg text-sm" style={{backgroundColor: '#B8860B'}}>Apply</button>
-                      <button onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', state: '', district: '', name: '' }); setShowFilters(false); setLoading(true); loadUsers(); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Reset</button>
-                    </div>
-                  </div>
-                </>,
-                document.body
-              )}
-            </div>
-          )}
-        </div>
+        {/* Mobile-only compact filters are rendered inside the fixed search container (below) */}
 
-          {/* Dashboard Search (below tabs) */}
+          {/* Dashboard Search (below tabs) - forms the fixed mobile header (search + filters) */}
           {tab === 'dashboard' && (
             <div
-              className="fixed md:static top-[86px] md:top-auto left-0 right-0 md:left-auto md:right-auto z-30 px-4 md:px-0 pb-2 md:pb-0 mb-0 md:mb-4"
-              style={{ backgroundColor: '#FFF8E7' }}
+              className="fixed md:static top-[86px] md:top-auto left-0 right-0 md:left-auto md:right-auto z-[9999] px-4 md:px-0 py-2 md:py-0 mb-0 md:mb-0"
+              style={{ backgroundColor: 'transparent', top: `${navbarHeight}px` }}
+              ref={mobileHeaderRef}
             >
               <div className="relative">
                 <div className="flex items-center bg-white rounded-xl shadow-sm px-3 py-1" style={{border: '2px solid #D4AF37'}}>
@@ -504,9 +548,69 @@ export default function DashboardPage() {
                     </button>
                   </div>
                 </div>
+                {/* Mobile Filters button inside search container */}
+                {tab === 'dashboard' && isMobile && (
+                  <div className="flex justify-center mt-0 mb-1">
+                    <div className={`relative ${showFilters ? 'z-[10000]' : ''}`}>
+                      <button
+                        onClick={() => setShowFilters((s) => !s)}
+                        className="px-3 py-2 rounded-xl font-semibold shadow text-sm"
+                        style={{backgroundColor: 'white', color: '#B8860B', border: '2px solid #D4AF37'}}
+                        aria-label="Filters"
+                        ref={mobileFilterAnchorRef}
+                      >
+                        Filters
+                      </button>
+                      {showFilters && isMobile && createPortal(
+                        <>
+                          <div className="fixed inset-0 z-[2000]" onClick={() => setShowFilters(false)} />
+                          <div
+                            className="fixed left-1/2 w-[85vw] max-w-sm bg-white rounded-xl shadow-md p-3 z-[2100]"
+                            style={{ border: '2px solid #D4AF37', top: mobilePopoverTop ?? 180, transform: 'translateX(-50%)' }}
+                          >
+                            <div className="grid grid-cols-1 gap-2">
+                              {enabledFilters.age && (
+                                <div className="flex items-center gap-2">
+                                  <input type="number" placeholder="Age min" value={filters.ageMin} onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
+                                  <span className="text-gray-500">-</span>
+                                  <input type="number" placeholder="Age max" value={filters.ageMax} onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
+                                </div>
+                              )}
+                              {enabledFilters.education && (
+                                <input type="text" placeholder="Education" value={filters.education} onChange={(e) => setFilters({ ...filters, education: e.target.value })} className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{border: '2px solid #D4AF37'}} />
+                              )}
+                              {enabledFilters.occupation && (
+                                <>
+                                  <select value={filters.state} onChange={(e) => setFilters({ ...filters, state: e.target.value, district: '' })} className="w-full px-2.5 py-1.5 rounded-lg text-sm bg-white" style={{border: '2px solid #D4AF37'}}>
+                                    <option value="">State</option>
+                                    {states.map((st) => (
+                                      <option key={st} value={st}>{st}</option>
+                                    ))}
+                                  </select>
+                                  <select value={filters.district} onChange={(e) => setFilters({ ...filters, district: e.target.value })} disabled={!filters.state} className="w-full px-2.5 py-1.5 rounded-lg text-sm bg-white disabled:bg-gray-100" style={{border: '2px solid #D4AF37'}}>
+                                    <option value="">District</option>
+                                    {districts.map((d) => (
+                                      <option key={d} value={d}>{d}</option>
+                                    ))}
+                                  </select>
+                                </>
+                              )}
+                            </div>
+                            <div className="mt-2 flex gap-2 justify-end">
+                              <button onClick={() => { setShowFilters(false); loadUsers(); }} className="px-3 py-1.5 text-white rounded-lg text-sm" style={{backgroundColor: '#B8860B'}}>Apply</button>
+                              <button onClick={() => { setFilters({ page: 1, ageMin: '', ageMax: '', education: '', state: '', district: '', name: '' }); setShowFilters(false); setLoading(true); loadUsers(); }} className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Reset</button>
+                            </div>
+                          </div>
+                        </>,
+                        document.body
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
+          {/* Mobile spacer no longer needed; content is fixed below header */}
         </div>
 
         {/* Inline info banner removed; toasts are used instead */}
@@ -515,22 +619,53 @@ export default function DashboardPage() {
         
         {/* dashboard Tab */}
         {tab === 'dashboard' && (
-          <div className="dashboard-scroll overflow-visible md:overflow-y-auto md:flex-1 md:pr-1 md:pt-0">
+          <div
+            className="dashboard-scroll md:overflow-y-auto md:flex-1 md:pr-1 md:pt-0 "
+            style={isMobile ? {
+              position: 'fixed',
+              top: `${(navbarHeight || 0) + (mobileHeaderHeight || 0)}px`,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              zIndex: 0,
+              backgroundColor: '#FFF8E7',
+              // backgroundColor: 'black',
+              paddingTop: '8px',
+              paddingBottom: '100px'
+            } : {}}
+          >
+            {/* Daily requests remaining badge */}
+            {meInfo?.requestsLimit != null && (
+              <div className="flex justify-end px-2 mb-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full shadow-sm border text-sm"
+                  style={{ backgroundColor: '#FFF8E7', borderColor: '#F5DEB3', color: '#B8860B' }}>
+                  <span className="font-semibold">Daily requests left:</span>
+                  <span className="font-bold">
+                    {Math.max(0, Number(meInfo.requestsRemaining || 0))}
+                  </span>
+                  <span className="opacity-70">/ {Number(meInfo.requestsLimit || 0)}</span>
+                </div>
+              </div>
+            )}
             <div className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-4">
             {users.map(u => {
               const isPinned = (u.displayPriority || 0) > 0;
               return (
               <div 
                 key={u._id} 
-                className={`col-span-1 bg-white shadow-md rounded-xl p-4 min-w-0 relative ${
+                className={`col-span-1 bg-white shadow-md rounded-xl p-4 min-w-0 relative z-0 ${
                   isPinned ? 'ring-2 ring-amber-400 shadow-lg animate-subtle-shine' : ''
                 }`}
                 style={u.isPremium ? (() => {
                   const tier = String(u.premiumTier || u.premiumPlan?.tier || '').toLowerCase();
+                  const diamondLinear = 'linear-gradient(135deg, #E0F7FF 0%, #BAE6FD 50%, #E6F0FF 100%)';
                   const goldLinear = 'linear-gradient(135deg, #F8D776 0%, #FCE7A2 50%, #E6F0FF 100%)';
                   const silverLinear = 'linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 50%, #F5F7FA 100%)';
                   const bronzeLinear = 'linear-gradient(135deg, #E3B58C 0%, #EFD6C2 50%, #D9B08C 100%)';
                   const lighting = 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.42), rgba(255,255,255,0) 60%)';
+                  if (tier === 'diamond') return { backgroundImage: `${lighting}, ${diamondLinear}` };
                   if (tier === 'gold') return { backgroundImage: `${lighting}, ${goldLinear}` };
                   if (tier === 'silver') return { backgroundImage: `${lighting}, ${silverLinear}` };
                   return { backgroundImage: `${lighting}, ${bronzeLinear}` };
@@ -559,7 +694,7 @@ export default function DashboardPage() {
                           const textColor = '#111827';
                           // Tier-colored thin border only when premium
                           const br = isPrem
-                            ? (tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : '#CD7F32')
+                            ? (tier === 'diamond' ? '#38BDF8' : tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : '#CD7F32')
                             : 'transparent';
                           return (
                             <div
@@ -576,9 +711,9 @@ export default function DashboardPage() {
                         })()}
                         {u.isPremium && (() => {
                           const tier = String(u.premiumTier || u.premiumPlan?.tier || '').toLowerCase();
-                          const bg = tier === 'gold' ? '#FCE7A2' : tier === 'silver' ? '#E5E7EB' : '#EFD6C2';
-                          const fg = tier === 'gold' ? '#8B6B00' : tier === 'silver' ? '#4B5563' : '#7C4A21';
-                          const br = tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : '#CD7F32';
+                          const bg = tier === 'diamond' ? '#E0F7FF' : tier === 'gold' ? '#FCE7A2' : tier === 'silver' ? '#E5E7EB' : '#EFD6C2';
+                          const fg = tier === 'diamond' ? '#0EA5E9' : tier === 'gold' ? '#8B6B00' : tier === 'silver' ? '#4B5563' : '#7C4A21';
+                          const br = tier === 'diamond' ? '#38BDF8' : tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : '#CD7F32';
                           const label = tier ? tier.toUpperCase() : 'PREMIUM';
                           return (
                             <span className="mt-1 px-2 py-0.5 text-[10px] font-extrabold rounded-full border" style={{ backgroundColor: bg, color: fg, borderColor: br }}>
@@ -803,16 +938,25 @@ export default function DashboardPage() {
                         {friend.age && friend.location && (
                           <p className="text-sm text-gray-600 mb-1">{friend.age} years • {friend.location}</p>
                         )}
-                        {friend.about && (
+                        {/* Last message preview (including pending) */}
+                        {friend.lastMessage && (
+                          <p className="text-sm text-gray-700 truncate">
+                            <span className="opacity-70 mr-1">{friend.lastMessage.sender === friend._id ? friend.name : 'You'}:</span>
+                            {friend.lastMessage.text || `[${friend.lastMessage.messageType}]`}
+                          </p>
+                        )}
+                        {!friend.lastMessage && friend.about && (
                           <p className="text-sm text-gray-500 truncate">{friend.about}</p>
                         )}
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center" style={{color: '#B8860B'}}>
-                        <BsChatDots className="text-xl mr-2" />
-                        <span className="text-sm font-medium">Start Chat</span>
+                      <div className="flex items-center gap-2" style={{color: '#B8860B'}}>
+                        <BsChatDots className="text-xl" />
+                        <span className="text-sm font-medium">
+                          {friend.isPending ? (friend.pendingRequestId ? 'Pending approval' : 'Waiting for other user') : 'Start Chat'}
+                        </span>
                       </div>
                       {friend.unreadCount > 0 && (
                         <div className="px-3 py-1 rounded-full text-xs font-semibold" style={{backgroundColor: '#F5F5DC', color: '#B8860B'}}>
@@ -820,6 +964,14 @@ export default function DashboardPage() {
                         </div>
                       )}
                     </div>
+
+                    {/* Inline accept/reject for recipient on pending chat */}
+                    {friend.isPending && friend.pendingRequestId && (
+                      <div className="mt-3 flex gap-2 justify-end">
+                        <button onClick={(e) => { e.stopPropagation(); handleAcceptPendingChat(friend); }} className="px-3 py-1.5 rounded-lg text-white text-sm" style={{ backgroundColor: '#16A34A' }}>Accept</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleRejectPendingChat(friend); }} className="px-3 py-1.5 rounded-lg text-white text-sm" style={{ backgroundColor: '#DC2626' }}>Reject</button>
+                      </div>
+                    )}
                   </div>
                   
 

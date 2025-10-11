@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getNotifications, markAsRead } from '../services/notificationService.js'
 import { respondToRequest } from '../services/requestService.js'
 import { respondHelpRequest } from '../services/helpService.js'
@@ -15,6 +16,7 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
   const { user } = useAuth()
   const [unreadCount, setUnreadCount] = useState(0)
   const getStorageKey = () => `admin:dismissed:notifs:${user?.id || 'anon'}`
+  const navigate = useNavigate()
 
   const dismissNotif = async (id, notifKind) => {
     setNotifications((prev) => prev.filter(n => n._id !== id))
@@ -200,17 +202,21 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleRespond = async (requestId, action) => {
+  const handleRespond = async (notif, action) => {
     setLoading(true)
     try {
-      console.log('Responding to request:', { requestId, action })
-      const result = await respondToRequest({ requestId, action })
+      console.log('Responding to request:', { requestId: notif._id, action })
+      const result = await respondToRequest({ requestId: notif._id, action })
       console.log('Response result:', result)
       await loadNotifications()
       // Trigger parent update callback to refresh dashboard
       if (onUpdate) onUpdate()
       // Dispatch event to refresh dashboard page
       window.dispatchEvent(new Event('requestStatusChanged'))
+      // If user accepted a chat request, jump into chat
+      if (action === 'accept' && notif?.type === 'chat' && notif?.from?._id) {
+        navigate(`/chat/${notif.from._id}`)
+      }
     } catch (e) {
       console.error('Failed to respond:', e)
       console.error('Error details:', e.response?.data)
@@ -377,14 +383,14 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
                         )}
                         <div className="flex gap-2 mt-3">
                           <button
-                            onClick={() => handleRespond(notif._id, 'accept')}
+                            onClick={() => handleRespond(notif, 'accept')}
                             disabled={loading}
                             className="flex-1 bg-green-500 text-white text-sm py-1.5 rounded-lg hover:bg-green-600 transition disabled:opacity-50"
                           >
                             Accept
                           </button>
                           <button
-                            onClick={() => handleRespond(notif._id, 'reject')}
+                            onClick={() => handleRespond(notif, 'reject')}
                             disabled={loading}
                             className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
                           >

@@ -54,6 +54,11 @@ export default function ProfileViewPage() {
       // currentUser and id are available in component scope
       if (String(currentUser?.id) === String(id)) return true
     } catch {}
+    // Premium viewers should rely on backend masking (plan field-level rules)
+    // so do not apply AppSettings-based front-end filtering for them
+    try {
+      if (profile?.viewerIsPremium) return true
+    } catch {}
     if (!profileDisplay || Object.keys(profileDisplay).length === 0) return true
     return !!profileDisplay[key]
   }
@@ -217,6 +222,8 @@ export default function ProfileViewPage() {
         toast.success('Request sent!')
       }
       loadProfile()
+      // Refresh global counters/badges
+      window.dispatchEvent(new Event('requestStatusChanged'))
     } catch (e) {
       if (e.response?.status === 429 && e.response?.data?.needsPremium) {
         toast.warn(`Daily request limit reached (${e.response.data.limit}). Redirecting to Premium...`)
@@ -234,6 +241,30 @@ export default function ProfileViewPage() {
       loadProfile()
     } catch (e) {
       setInfo(e.response?.data?.message || 'Error')
+    }
+  }
+
+  const handleStartChat = async () => {
+    try {
+      if (profile.isConnected) {
+        nav(`/chat/${id}`)
+        return
+      }
+      if (allowDirectMessage) {
+        // Send a chat request so the other user can accept/reject
+        const res = await sendRequest({ toUserId: id, type: 'chat' })
+        setInfo('Chat request sent. Please wait for acceptance.')
+        try { toast.success('💬 Chat request sent!') } catch {}
+        // Refresh global counters/badges
+        window.dispatchEvent(new Event('requestStatusChanged'))
+        // Navigate to chat so the sender can start messaging immediately (recipient can read but replies only after accept)
+        nav(`/chat/${id}`)
+        return
+      }
+      // Fallback
+      nav(`/chat/${id}`)
+    } catch (e) {
+      setInfo(e.response?.data?.message || 'Failed to start chat')
     }
   }
 
@@ -268,12 +299,13 @@ export default function ProfileViewPage() {
 
   const isOwnProfile = String(currentUser?.id) === String(id)
   const isAdmin = currentUser?.isAdmin
+  const allowDirectMessage = !!profile?.viewerCanMessageWithoutFollow
 
   return (
     <div className='h-full ' style={{backgroundColor:'#FFF8E7'}}>
       
       <div>
-      <div className="min-h-screen py-6 px-3  " >
+      <div className="min-h-screen py-6 px-3 pb-6 md:pb-6" style={{ paddingBottom: window.innerWidth < 768 ? '120px' : '24px' }} >
       <div className="max-w-3xl mx-auto">
         {isAdmin && !isOwnProfile && (
           <div className="mb-6 p-4 bg-white rounded-xl shadow-md flex items-center justify-between" style={{border:'1px solid #F5DEB3', color:'#2C2C2C'}}>
@@ -334,11 +366,13 @@ export default function ProfileViewPage() {
           style={{
             border:'1px solid #F5DEB3',
             background: profile.isPremium
-              ? (((profile.premiumTier || '').toLowerCase() === 'gold')
-                  ? 'linear-gradient(135deg, #FCE7A2 0%, #F8D776 100%)'
-                  : ((profile.premiumTier || '').toLowerCase() === 'silver')
-                    ? 'linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 100%)'
-                    : 'linear-gradient(135deg, #EFD6C2 0%, #E3B58C 100%)')
+              ? (((profile.premiumTier || '').toLowerCase() === 'diamond')
+                  ? 'linear-gradient(135deg, #E0F7FF 0%, #BAE6FD 100%)'
+                  : ((profile.premiumTier || '').toLowerCase() === 'gold')
+                    ? 'linear-gradient(135deg, #FCE7A2 0%, #F8D776 100%)'
+                    : ((profile.premiumTier || '').toLowerCase() === 'silver')
+                      ? 'linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 100%)'
+                      : 'linear-gradient(135deg, #EFD6C2 0%, #E3B58C 100%)')
               : '#FFFFFF'
           }}
         >
@@ -373,9 +407,9 @@ export default function ProfileViewPage() {
                 {(() => {
                   const tier = (profile.premiumTier || '').toLowerCase();
                   // Premium palette
-                  const bg = tier === 'gold' ? '#FCE7A2' : tier === 'silver' ? '#E5E7EB' : '#EFD6C2';
-                  const fg = tier === 'gold' ? '#8B6B00' : tier === 'silver' ? '#4B5563' : '#7C4A21';
-                  const br = tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : '#CD7F32';
+                  const bg = tier === 'diamond' ? '#E0F7FF' : tier === 'gold' ? '#FCE7A2' : tier === 'silver' ? '#E5E7EB' : '#EFD6C2';
+                  const fg = tier === 'diamond' ? '#0EA5E9' : tier === 'gold' ? '#8B6B00' : tier === 'silver' ? '#4B5563' : '#7C4A21';
+                  const br = tier === 'diamond' ? '#38BDF8' : tier === 'gold' ? '#D4AF37' : tier === 'silver' ? '#C0C0C0' : '#CD7F32';
                   const label = tier ? tier.toUpperCase() : 'PREMIUM';
                   return (
                     <span className="px-3 py-1 text-xs font-extrabold rounded-full border" style={{ backgroundColor: bg, color: fg, borderColor: br }}>
@@ -428,7 +462,7 @@ export default function ProfileViewPage() {
               {/* Action Buttons */}
               {!isOwnProfile && !isAdmin && (
                 <div className="flex flex-wrap justify-center gap-3.5">
-                  {!profile.isConnected ? (
+                  {(!profile.isConnected && !allowDirectMessage) ? (
                     <button
                       onClick={handleFollow}
                       className="px-5 py-2.5 text-white rounded-lg transition flex items-center gap-2"
@@ -440,12 +474,12 @@ export default function ProfileViewPage() {
                   ) : (
                     <>
                       <button
-                        onClick={() => nav(`/chat/${id}`)}
+                        onClick={handleStartChat}
                         className="px-5 py-2.5 text-white rounded-lg transition flex items-center gap-2"
                         style={{backgroundColor:'#B8860B'}}
                       >
                         <MdChat />
-                        <span>Start Chat</span>
+                        <span>{profile.isConnected ? 'Start Chat' : (allowDirectMessage ? 'Start Chat' : 'Start Chat')}</span>
                       </button>
                       {/* Request Photos button: hidden if already accessible */}
                       {!profile.isPhotoAccessible && (
@@ -472,12 +506,14 @@ export default function ProfileViewPage() {
                           </button>
                         )
                       )}
-                      <button
-                        onClick={handleUnfollow}
-                        className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-300 font-semibold"
-                      >
-                        Unfollow
-                      </button>
+                      {profile.isConnected && (
+                        <button
+                          onClick={handleUnfollow}
+                          className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-300 font-semibold"
+                        >
+                          Unfollow
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
@@ -508,7 +544,7 @@ export default function ProfileViewPage() {
         </div>
 
       {/* Profile Details */}
-      {(profile.isConnected || isOwnProfile || isAdmin || profile.isPublic) ? (
+      {(profile.isConnected || isOwnProfile || isAdmin || profile.isPublic || profile.viewerHasPrivateAccess) ? (
         <>
           {/* Admin-only fields */}
           {isAdmin && !isOwnProfile && (
