@@ -5,6 +5,7 @@ import { updateProfile, changePassword, deleteGalleryImage } from '../services/p
 import { useAuth } from '../context/AuthContext.jsx'
 import { MdPerson } from 'react-icons/md'
 import { toast } from 'react-toastify'
+import { getAppSettings } from '../services/adminService.js'
 
 export default function EditProfilePage() {
   const nav = useNavigate()
@@ -24,6 +25,7 @@ export default function EditProfilePage() {
   const [loading, setLoading] = useState(false)
   const [info, setInfo] = useState('')
   const [tab, setTab] = useState('profile')
+  const [globalVisibilityMode, setGlobalVisibilityMode] = useState('public')
 
   const handleSelectSlot = (idx, file) => {
     setSlotFiles(prev => {
@@ -44,7 +46,8 @@ export default function EditProfilePage() {
 
   useEffect(() => {
     (async () => {
-      const data = await getMe()
+      const [data, appSettings] = await Promise.all([getMe(), getAppSettings()])
+      setGlobalVisibilityMode(appSettings?.profileIdVisibilityMode || 'public')
       setForm({
         name: data.name || '',
         fatherName: data.fatherName || '',
@@ -235,16 +238,22 @@ export default function EditProfilePage() {
             {/* Privacy Section */}
             <div className="border border-yellow-300 rounded-xl p-4 mb-6 text-left">
               <h3 className="text-amber-600 font-semibold mb-3">PROFILE VISIBILITY</h3>
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={!!form.isPublic}
-                  onChange={(e) => setForm({ ...form, isPublic: e.target.checked })}
-                />
-                <span className="text-sm text-gray-700">
-                  Make my profile <span className="font-semibold">Public</span> (others can view all photos and details without connection. Chat still requires mutual follow.)
-                </span>
-              </label>
+              {globalVisibilityMode === 'public' ? (
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={!!form.isPublic}
+                    onChange={(e) => setForm({ ...form, isPublic: e.target.checked })}
+                  />
+                  <span className="text-sm text-gray-700">
+                    Make my profile <span className="font-semibold">Public</span> (others can view all photos and details without connection. Chat still requires mutual follow.)
+                  </span>
+                </label>
+              ) : (
+                <div className="text-sm text-gray-600 italic">
+                  ℹ️ Admin enforced: All profiles are <span className="font-semibold">Private</span>. Users must connect to view details.
+                </div>
+              )}
             </div>
 
             {/* Photos Section */}

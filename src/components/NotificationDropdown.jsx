@@ -6,6 +6,7 @@ import { respondHelpRequest } from '../services/helpService.js'
 import { getPendingProfileEdits, approveProfileEditApi, rejectProfileEditApi } from '../services/adminService.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { connectSocket, onSocketEvent } from '../services/socketService.js'
+import { playNotificationSound } from '../utils/notificationSound.js'
 
 export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
   const [notifications, setNotifications] = useState([])
@@ -127,16 +128,10 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
         ) {
           loadNotifications()
         }
-        // Profile toasts
-        if (payload.kind === 'profile:approved') {
-          import('react-toastify').then(({ toast }) => {
-            toast.success('✅ Profile approved by admin!', { position: 'top-center', autoClose: 5000 })
-          })
-        } else if (payload.kind === 'profile:rejected') {
-          import('react-toastify').then(({ toast }) => {
-            toast.error('❌ Profile changes rejected by admin', { position: 'top-center', autoClose: 5000 })
-          })
-        } else if (payload.kind === 'premium:activated') {
+        // Profile toasts - handled by Navbar to avoid duplicates
+        // Skip profile approved/rejected toasts here since Navbar already shows them
+        if (payload.kind === 'premium:activated') {
+          playNotificationSound('notification') // Play sound for premium activation
           // Congratulation toast for premium activation
           import('react-toastify').then(({ toast }) => {
             const tier = String(payload.tier || '').toUpperCase() || 'PREMIUM'
@@ -146,14 +141,17 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
         }
         // Help request toasts
         if (payload.kind === 'request:help:approved') {
+          playNotificationSound('notification')
           import('react-toastify').then(({ toast }) => {
             toast.success('✅ Help request approved. You can chat with admin now.', { position: 'top-center', autoClose: 5000 })
           })
         } else if (payload.kind === 'request:help:rejected') {
+          playNotificationSound('notification')
           import('react-toastify').then(({ toast }) => {
             toast.error('❌ Help request rejected by admin.', { position: 'top-center', autoClose: 5000 })
           })
         } else if (payload.kind === 'request:help:resolved') {
+          playNotificationSound('notification')
           import('react-toastify').then(({ toast }) => {
             toast.info('ℹ️ Your help query was resolved. Chat is closed.', { position: 'top-center', autoClose: 5000 })
           })
@@ -161,16 +159,23 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
       })
       
       const unsubAdminEdit = onSocketEvent('adminPendingEdit', () => {
-        if (user?.isAdmin) loadNotifications()
+        if (user?.isAdmin) {
+          loadNotifications()
+          playNotificationSound('request') // Play sound for admin
+        }
       })
       
       const unsubAdminRequest = onSocketEvent('adminRequest', () => {
-        if (user?.isAdmin) loadNotifications()
+        if (user?.isAdmin) {
+          loadNotifications()
+          playNotificationSound('request') // Play sound for admin
+        }
       })
 
       // Admin real-time notification on premium payment
       const unsubAdminPayment = onSocketEvent('adminPayment', (payload) => {
         if (!user?.isAdmin) return
+        playNotificationSound('request') // Play sound for premium purchase
         const tier = String(payload?.tier || '').toUpperCase() || 'PREMIUM'
         import('react-toastify').then(({ toast }) => {
           toast.info(`💳 New premium purchase: ${tier}`, { position: 'top-center', autoClose: 6000 })
@@ -206,13 +211,22 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
     setLoading(true)
     try {
       console.log('Responding to request:', { requestId: notif._id, action })
+      
+      // Immediately remove this notification from the list (optimistic update)
+      setNotifications(prev => prev.filter(n => n._id !== notif._id))
+      setUnreadCount(c => Math.max(0, c - 1))
+      
       const result = await respondToRequest({ requestId: notif._id, action })
       console.log('Response result:', result)
+      
+      // Reload notifications to get fresh data from server
       await loadNotifications()
+      
       // Trigger parent update callback to refresh dashboard
       if (onUpdate) onUpdate()
       // Dispatch event to refresh dashboard page
       window.dispatchEvent(new Event('requestStatusChanged'))
+      
       // If user accepted a chat request, jump into chat
       if (action === 'accept' && notif?.type === 'chat' && notif?.from?._id) {
         navigate(`/chat/${notif.from._id}`)
@@ -220,6 +234,10 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
     } catch (e) {
       console.error('Failed to respond:', e)
       console.error('Error details:', e.response?.data)
+      
+      // On error, reload notifications to restore correct state
+      await loadNotifications()
+      
       alert(`Error: ${e.response?.data?.message || 'Failed to respond to request'}`)
     }
     setLoading(false)
@@ -579,14 +597,14 @@ export default function NotificationDropdown({ onUpdate, isMobileSheet }) {
                           )}
                           <div className="flex gap-2 mt-3">
                             <button
-                              onClick={() => handleRespond(notif._id, 'accept')}
+                              onClick={() => handleRespond(notif, 'accept')}
                               disabled={loading}
                               className="flex-1 bg-green-500 text-white text-sm py-1.5 rounded-lg hover:bg-green-600 transition disabled:opacity-50"
                             >
                               Accept
                             </button>
                             <button
-                              onClick={() => handleRespond(notif._id, 'reject')}
+                              onClick={() => handleRespond(notif, 'reject')}
                               disabled={loading}
                               className="flex-1 bg-red-500 text-white text-sm py-1.5 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
                             >

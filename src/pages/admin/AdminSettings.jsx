@@ -11,20 +11,32 @@ export default function AdminSettings() {
     premiumUserRequestLimit: 20,
     notifyFollowRequestEmail: false,
   });
-  const [appSettings, setAppSettings] = useState({ enabledFilters: {}, profileDisplayFields: {}, preAuthBanner: { enabled: false, imageUrl: '' }, auth: { loginIdentifier: 'email' } });
+  const [appSettings, setAppSettings] = useState({ enabledFilters: {}, profileDisplayFields: {}, preAuthBanner: { enabled: false, imageUrl: '' }, auth: { loginIdentifier: 'email' }, profileIdVisibilityMode: 'public' });
 
   const loadAll = async () => {
     try {
       setLoading(true);
       const [s, a] = await Promise.all([getSettings(), getAppSettings()]);
       setSettings(prev => ({ ...(prev || {}), ...(s || {}) }));
-      setAppSettings(a || { enabledFilters: {}, profileDisplayFields: {}, preAuthBanner: { enabled: false, imageUrl: '' }, auth: { loginIdentifier: 'email' } });
+      setAppSettings({ enabledFilters: {}, profileDisplayFields: {}, preAuthBanner: { enabled: false, imageUrl: '' }, auth: { loginIdentifier: 'email' }, profileIdVisibilityMode: 'public', ...(a || {}) });
     } catch (e) {
       const msg = e.response?.data?.message || e.message;
       setInfo(msg);
       toast.error(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVisibilitySave = async () => {
+    try {
+      await updateAppSettings({ profileIdVisibilityMode: appSettings.profileIdVisibilityMode || 'public' });
+      setInfo('User ID visibility mode saved');
+      toast.success('User ID visibility mode saved');
+    } catch (e) {
+      const msg = 'Failed to save visibility mode: ' + (e.response?.data?.message || e.message);
+      setInfo(msg);
+      toast.error(msg);
     }
   };
 
@@ -118,6 +130,42 @@ export default function AdminSettings() {
           />
           <p className="text-sm text-gray-500 mt-1">Number of follow requests free users can send per day</p>
         </div>
+
+      {/* User ID Visibility Mode */}
+      <div className="mt-10 border-t pt-6">
+        <h3 className="text-2xl font-bold mb-4 text-gray-800">User ID Visibility</h3>
+        <p className="text-sm text-gray-500 mb-4">Choose how profile ID is handled across the app.</p>
+        <div className="flex flex-col gap-3">
+          <label className="flex items-center gap-2 p-3 border rounded-lg">
+            <input
+              type="radio"
+              name="idVisibility"
+              checked={(appSettings.profileIdVisibilityMode || 'public') === 'public'}
+              onChange={() => setAppSettings(prev => ({ ...(prev || {}), profileIdVisibilityMode: 'public' }))}
+            />
+            <span>
+              Public mode — Default is public, and users can choose Public or Private in their settings.
+            </span>
+          </label>
+          <label className="flex items-center gap-2 p-3 border rounded-lg">
+            <input
+              type="radio"
+              name="idVisibility"
+              checked={(appSettings.profileIdVisibilityMode || 'public') === 'private'}
+              onChange={() => setAppSettings(prev => ({ ...(prev || {}), profileIdVisibilityMode: 'private' }))}
+            />
+            <span>
+              Private mode — All users are forced to Private; user option is hidden.
+            </span>
+          </label>
+        </div>
+        <button
+          onClick={handleVisibilitySave}
+          className="mt-6 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold"
+        >
+          Save Visibility Mode
+        </button>
+      </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Premium User Daily Request Limit (fallback)

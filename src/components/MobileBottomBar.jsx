@@ -93,23 +93,27 @@ export default function MobileBottomBar() {
     
     const unsubUserEvent = onSocketEvent('userEvent', (payload) => {
       loadNotifCount()
-      // Show toast for profile approval/rejection
+      // Show toast for profile approval/rejection - use toastId to prevent duplicates across components
       if (payload?.kind === 'profile:approved') {
+        // Sound is played in Navbar, skip here to avoid duplicate
         toast.success('✅ Great news! Admin approved your profile changes!', {
           position: 'top-center',
           autoClose: 5000,
-          hideProgressBar: false
+          hideProgressBar: false,
+          toastId: 'profile-approved'
         })
         // Refresh user data to show updated profile
         setTimeout(() => {
           window.location.reload()
         }, 2000)
       } else if (payload?.kind === 'profile:rejected') {
+        // Sound is played in Navbar, skip here to avoid duplicate
         const reason = payload.reason ? ` Reason: ${payload.reason}` : ''
         toast.error(`❌ Your profile changes were rejected by admin.${reason}`, {
           position: 'top-center',
           autoClose: 6000,
-          hideProgressBar: false
+          hideProgressBar: false,
+          toastId: 'profile-rejected'
         })
       }
     })

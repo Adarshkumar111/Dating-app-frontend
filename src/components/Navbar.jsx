@@ -7,6 +7,7 @@ import HelpDropdown from './HelpDropdown.jsx'
 import { MdMessage, MdMenu, MdClose, MdSettings } from 'react-icons/md'
 import { connectSocket, disconnectSocket, onSocketEvent } from '../services/socketService.js'
 import { toast } from 'react-toastify'
+import { playNotificationSound } from '../utils/notificationSound.js'
 
 export default function Navbar(){
   const { user, logout } = useAuth()
@@ -47,26 +48,31 @@ export default function Navbar(){
       // Listen for new messages
       const unsubMessage = onSocketEvent('newMessage', () => {
         loadUnreadCount()
+        playNotificationSound('message') // Play sound for new message
       })
       
       // Listen for profile approval/rejection notifications
       const unsubUserEvent = onSocketEvent('userEvent', (payload) => {
         if (payload?.kind === 'profile:approved') {
+          playNotificationSound('notification') // Play sound
           toast.success('✅ Great news! Admin approved your profile changes!', {
             position: 'top-center',
             autoClose: 5000,
-            hideProgressBar: false
+            hideProgressBar: false,
+            toastId: 'profile-approved'
           })
           // Refresh user data to show updated profile
           setTimeout(() => {
             window.location.reload()
           }, 2000)
         } else if (payload?.kind === 'profile:rejected') {
+          playNotificationSound('notification') // Play sound
           const reason = payload.reason ? ` Reason: ${payload.reason}` : ''
           toast.error(`❌ Your profile changes were rejected by admin.${reason}`, {
             position: 'top-center',
             autoClose: 6000,
-            hideProgressBar: false
+            hideProgressBar: false,
+            toastId: 'profile-rejected'
           })
         }
       })
